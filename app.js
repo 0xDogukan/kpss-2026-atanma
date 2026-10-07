@@ -26,11 +26,11 @@
     box.className = 'msg bad';
     box.style.margin = '12px 0';
     box.textContent = 'Sayfada bir hata oluştu: ' + (e.message || 'bilinmeyen hata') + '. Sayfayı yenilemeyi dene; sorun sürerse "Veri ekle" bölümündeki yüklemeleri kaldır.';
-    const host = document.querySelector('.main-grid');
+    const host = document.querySelector('.hero');
     if (host && !box.parentNode) host.before(box);
   });
   if (!D || !RK) {
-    document.querySelector('.main-grid').innerHTML = '<p class="msg bad">Veri dosyaları yüklenemedi. <code>data</code> klasörünün <code>index.html</code> ile aynı yerde olduğundan emin ol.</p>';
+    document.querySelector('#search').innerHTML = '<p class="msg bad">Veri dosyaları yüklenemedi. <code>data</code> klasörünün <code>index.html</code> ile aynı yerde olduğundan emin ol.</p>';
     return;
   }
 
@@ -84,6 +84,25 @@
     const top = el.getBoundingClientRect().top;
     if (soft && top >= 0 && top < innerHeight * 0.4) return;
     el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+  function focusField(sel) {
+    const el = $(sel);
+    if (!el) return;
+    goTo(el.closest('.field') || el);
+    el.focus({ preventScroll: true });
+  }
+  const ICON = {
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8.4 8.4l4.2 4.2M12.6 8.4l-4.2 4.2"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+  };
+  // Sonuç olmayan her yerde aynı büyük kutu: başlık, açıklama (HTML) ve data-act ile çalışan öneri düğmeleri.
+  function emptyHTML({ icon = 'search', tone = '', title, text = '', actions = [], compact = false, flat = false }) {
+    const cls = ['empty', tone, compact ? 'compact' : '', flat ? 'flat' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}" role="status"><span class="empty-ico" aria-hidden="true">${ICON[icon]}</span>
+      <p class="empty-title">${esc(title)}</p>${text ? `<p class="empty-text">${text}</p>` : ''}
+      ${actions.length ? `<div class="empty-acts">${actions.map(([label, act, primary, val]) =>
+        `<button type="button" class="btn${primary ? ' btn-primary' : ''}" data-act="${act}"${val ? ` data-val="${esc(val)}"` : ''}>${esc(label)}</button>`).join('')}</div>` : ''}</div>`;
   }
 
   // ---------------------------------------------------------------- depolama
@@ -171,7 +190,7 @@
   // ---------------------------------------------------------------- durum
   const DEFAULTS = { level: 'lisans', score: '80,50000', rank: '', group: 'HEMŞİRE', il: '', mode: 'rank', kind: '', K: null, C0: '0',
     tab: 'gecmis', sel: null, place: null, q: '', sort: 'taban-asc', scope: 'group', page: 0, example: true, showAll: false,
-    bolum: '', nkod: '', nhas: [], nstrict: false, nplace: 'all', bpage: 0, qyear: '2026' };
+    bolum: '', nkod: '', nhas: [], nstrict: false, nplace: 'all', bpage: 0, qyear: 'all' };
   const state = Object.assign({}, DEFAULTS, store.get('kpss2026-state', {}));
   function save() {
     const keep = ['level', 'score', 'rank', 'group', 'il', 'mode', 'kind', 'K', 'C0', 'tab', 'sel', 'place', 'sort', 'scope', 'example', 'bolum', 'nkod', 'nhas', 'nstrict', 'nplace', 'qyear'];
@@ -337,16 +356,43 @@
     elGroup.innerHTML = '<option value="">Tüm kadrolar</option>' + list.map(([gi, n]) =>
       `<option value="${esc(DICT.grup[gi])}">${esc(groupLabel(DICT.grup[gi]))} (${fInt(n)} kadro)</option>`).join('');
     elGroup.value = state.group || '';
-    $('#group-chips').innerHTML = list.slice(0, 6).map(([gi]) => {
-      const g = DICT.grup[gi];
-      return `<button type="button" class="chip" data-group="${esc(g)}" aria-pressed="${g === state.group}">${esc(groupLabel(g))}</button>`;
-    }).join('');
+    renderGroupChips();
+  }
+  // Kadro kısayolları: bölüm yazıldıysa bölümünün başvurabildiği kadrolar, yoksa en çok alım yapılanlar.
+  const chipMemo = { key: null, val: null };
+  function groupChipList() {
+    const q = up(state.bolum).trim(), typed = typedCodes();
+    const key = [state.level, q, typed.join(','), (state.nhas || []).join(','), R.length].join('|');
+    if (chipMemo.key === key) return chipMemo.val;
+    const cnt = new Map();
+    if (NIT_PIDS.length && (q.length >= 3 || typed.some(isEduCode))) {
+      for (const it of findKadros(NIT_PIDS, q, typed, { score: null })) {
+        if (it.r && !it.missing.length) cnt.set(it.r[COL.grup], (cnt.get(it.r[COL.grup]) || 0) + it.r[COL.kont]);
+      }
+    }
+    const fromBolum = cnt.size > 0;
+    if (!fromBolum) {
+      const L = LEVELS.indexOf(state.level);
+      for (const r of R) if (r[COL.level] === L) cnt.set(r[COL.grup], (cnt.get(r[COL.grup]) || 0) + r[COL.kont]);
+    }
+    chipMemo.key = key;
+    chipMemo.val = { fromBolum, groups: [...cnt.entries()].sort((a, b) => b[1] - a[1]).map(([gi]) => DICT.grup[gi]) };
+    return chipMemo.val;
+  }
+  function renderGroupChips() {
+    const { fromBolum, groups } = groupChipList();
+    $('#group-chips').innerHTML = `<span class="chips-lbl">${fromBolum ? 'Bölümüne uygun:' : 'Sık seçilenler:'}</span>` + groups.slice(0, 6).map((g) =>
+      `<button type="button" class="chip" data-group="${esc(g)}" aria-pressed="${g === state.group}">${esc(groupLabel(g))}</button>`).join('');
+    const off = fromBolum && !!state.group && !groups.includes(state.group);
+    const warn = $('#v-warn');
+    warn.hidden = !off;
+    warn.innerHTML = off ? `<b>${esc(groupLabel(state.group))}</b> kadroları bölümünle eşleşmiyor. Bölümüne uygun bir kadro seç: ${groups.slice(0, 3).map((g) =>
+      `<button type="button" class="btn-link" data-group="${esc(g)}">${esc(groupLabel(g))}</button>`).join(', ')}.` : '';
   }
   function fillIl() {
     const iller = DICT.il.filter((x) => x).slice().sort((a, b) => a.localeCompare(b, 'tr'));
     elIl.innerHTML = '<option value="">Tüm iller</option>' + iller.map((x) => `<option value="${esc(x)}">${esc(trTitle(x))}</option>`).join('');
     elIl.value = state.il || '';
-    if (state.il) $('#il-more').open = true;
   }
   function fillKinds() {
     const kinds = [...new Set(P.map((p) => p.kind))].sort((a, b) => a.localeCompare(b, 'tr'));
@@ -407,6 +453,9 @@
     const pr = u.rank ? predict(fit, K + C0, u.rank) : null;
     const v = verdictOf(pr ? pr.pmax : null);
     $('#example-flag').hidden = !state.example;
+    $('#v-body').hidden = !u.rank;
+    $('#v-empty').innerHTML = u.rank ? '' : emptyHTML({ icon: 'edit', compact: true, title: 'Puanını yaz',
+      text: 'Atanma ihtimalini hesaplamak için yukarıdaki <b>Bilgilerin</b> bölümüne 2026 KPSS puanını ya da başarı sıranı yaz.', actions: [['Puanını yaz', 'focus-score', true]] });
     $('#gauge').innerHTML = gaugeSVG(pr ? pr.pmax : null, v.c);
     const pill = $('#v-pill');
     pill.className = 'pill pill-lg ' + v.c;
@@ -418,7 +467,7 @@
       $('#v-sub').textContent = '';
     } else if (!pr) {
       $('#v-sentence').innerHTML = `<b>${esc(gname)}</b> için tahmin yapacak kadar geçmiş alım yok.`;
-      $('#v-sub').textContent = 'Başka bir kadro seç ya da aşağıdaki geçmiş alımlara göz at.';
+      $('#v-sub').innerHTML = 'Başka bir kadro seç ya da aşağıdaki geçmiş alımlara göz at. <button type="button" class="btn-link" data-act="focus-group">Kadro seç</button>';
     } else {
       $('#v-sentence').innerHTML = `<b>${esc(gname)}</b> kadrosuna 2026 puanlarıyla toplam <b>${fInt(K + C0)}</b> kişi alınırsa, tüm illeri tercih ettiğinde atanma ihtimalin <b>${fProb(pr.pmax)}</b>.`;
       $('#v-sub').textContent = `Kadroların yarısının tabanını geçme ihtimalin ${fProb(pr.p50)}. Tahmini en düşük taban yaklaşık ${sc(pr.rmax)} puan (${fInt(pr.rmax)}. sıra).`;
@@ -467,12 +516,15 @@
     $('#stats').innerHTML = tiles.join('');
     const lvl = LV[state.level];
     const bad = u.rawScore != null && (u.rawScore < 40 || u.rawScore > 100);
-    $('#score-hint').className = 'hint' + (bad || (u.rawScore == null && state.score) ? ' err' : '');
-    $('#score-hint').textContent = u.rawScore == null && state.score ? 'Puan anlaşılamadı; örnek: 81,73954' :
-      (bad ? 'KPSS puanları 40 ile 100 arasında olur.' : `Sonuç belgendeki ${lvl.puan} puanı`);
+    const sh = $('#score-hint');
+    sh.className = 'hint' + (bad || (u.rawScore == null && state.score) ? ' err' : state.example ? ' ex' : '');
+    sh.textContent = u.rawScore == null && state.score ? 'Puan anlaşılamadı; örnek: 81,73954'
+      : bad ? 'KPSS puanları 40 ile 100 arasında olur.'
+      : state.example ? 'Şu an örnek puan gösteriliyor; kendi puanını yaz.' : `Sonuç belgendeki ${lvl.puan} puanı`;
     $('#rank-hint').textContent = state.level === 'lisans'
       ? (parseIntTR(state.rank) ? `2026 Lisans'ta ${fInt(m26 ? m26.n : null)} aday var.` : 'Boş bırakırsan puanından tahmin ederiz.')
       : `${lvl.ad} 2026 sonuçları ${state.level === 'onlisans' ? '30 Ekim' : '19 Kasım'}'de açıklanacak; şimdilik tahmin 2024 verisine dayanıyor.`;
+    renderProbChart();
   }
 
   // ---------------------------------------------------------------- geçmiş alımlar
@@ -488,7 +540,16 @@
   }
   function renderRangeChart(list, u) {
     const host = $('#range-chart');
-    if (!list.length) { host.innerHTML = '<p class="muted" style="padding:20px 0">Bu seçim için geçmiş alım bulunamadı.</p>'; $('#range-legend').innerHTML = ''; return; }
+    if (!list.length) {
+      const acts = [];
+      if (state.il) acts.push([trTitle(state.il) + ' filtresini kaldır', 'clear-il', true]);
+      if (state.kind) acts.push(['Tüm alım türlerini göster', 'clear-kind', !acts.length]);
+      acts.push(['Başka bir kadro seç', 'focus-group', !acts.length]);
+      host.innerHTML = emptyHTML({ compact: true, flat: true, title: 'Geçmiş alım bulunamadı',
+        text: `<b>${esc(groupLabel(state.group))}</b> için bu seçimle ${esc(LV[state.level].ad.toLocaleLowerCase('tr-TR'))} düzeyinde geçmiş yerleştirme yok.`, actions: acts });
+      $('#range-legend').innerHTML = '';
+      return;
+    }
     const conv = (st, s) => (state.mode === 'rank' ? to2026(state.level, st.lv.scoreYear, s) : s);
     const pts = list.map((st) => ({ st, min: conv(st, st.min), med: conv(st, st.med), max: conv(st, st.max) }));
     const userY = u.score;
@@ -582,7 +643,7 @@
         <p class="pl-you"><span class="pill ${stt}">${STATUS_TXT[stt]}</span><span>${fInt(st.filled)} kadronun <b>${fInt(st.reach)}</b> tanesine yeterdi (${fPct(share)})</span></p>
         <button class="btn-link" type="button" data-open="${esc(key)}">Kadroları gör →</button>
       </article>`;
-    }).join('') || '<p class="muted">Bu seçim için geçmiş alım bulunamadı.</p>';
+    }).join('');
     const more = $('#more-cards');
     more.hidden = rows.length <= 9;
     more.textContent = state.showAll ? 'Daha az göster' : `Tüm alımları göster (${rows.length})`;
@@ -618,17 +679,17 @@
     renderHemsire();
   }
 
-  // ---------------------------------------------------------------- ihtimal grafiği
-  function renderIhtimal() {
+  // ---------------------------------------------------------------- ihtimal grafiği (sonuç kartında, açılınca çizilir)
+  function renderProbChart() {
+    if (!$('#prob-more').open) return;
     const u = user();
     const fit = currentFit();
     const K = currentK(fit);
     const C0 = parseIntTR(state.C0) || 0;
     const gname = groupLabel(state.group);
-    $('#ihtimal-title').textContent = `${gname} · ${LV[state.level].ad}: kadro sayısına göre atanma ihtimali`;
     if (!fit || !fit.ok) {
-      $('#prob-chart').innerHTML = '<p class="muted" style="padding:16px 0">Bu kadro için yeterli geçmiş alım yok.</p>';
-      $('#scen-kv').innerHTML = ''; $('#scen-note').textContent = ''; $('#tbl-scen').innerHTML = '';
+      $('#prob-chart').innerHTML = emptyHTML({ icon: 'info', compact: true, flat: true, title: 'Yeterli geçmiş alım yok', text: `<b>${esc(gname)}</b> için ihtimal grafiği çizilemiyor.` });
+      $('#scen-kv').innerHTML = '';
       return;
     }
     const pr = u.rank ? predict(fit, K + C0, u.rank) : null;
@@ -641,7 +702,6 @@
       <dt>Tahmini en düşük taban</dt><dd>≈ ${s(pr.rmax)} puan · ${fInt(pr.rmax)}. sıra</dd>
       <dt>%80 güven aralığı</dt><dd>${s(pr.rmaxLo)} – ${s(pr.rmaxHi)} puan</dd>
       <dt>Tahmini ortadaki taban</dt><dd>≈ ${s(pr.r50)} puan</dd>` : '<dt>Durum</dt><dd>Puanını yaz</dd>';
-    $('#scen-note').textContent = `Geçmiş dönemlerde en düşük tabanın başarı sırası, o döneme kadar bu kadroya yerleşen kişi sayısının ortalama ${F1.format(Math.exp(fit.max.mu))} katı oldu (${fit.pts.length} alım). Nitelik şartları ve il tercihleri modele girmez; "tüm illeri tercih eden" en iyimser senaryodur.`;
     const host = $('#prob-chart');
     if (u.rank) {
       const W = Math.max(300, host.clientWidth || 560), H = 240, ml = 40, mr = 14, mt = 12, mb = 38;
@@ -660,6 +720,18 @@
       g += `<text x="${ml}" y="${H - 4}" font-size="11">Açılan kadro sayısı (logaritmik)</text>`;
       host.innerHTML = g + '</svg>';
     } else host.innerHTML = '';
+  }
+  // Yöntem sekmesi: modelin dayandığı geçmiş alımlar
+  function renderModelTable() {
+    const fit = currentFit();
+    const gname = groupLabel(state.group);
+    $('#ihtimal-title').textContent = `Modelin dayandığı geçmiş alımlar · ${gname} (${LV[state.level].ad})`;
+    if (!fit || !fit.ok) {
+      $('#scen-note').textContent = `${gname} için tahmin yapacak kadar geçmiş alım yok.`;
+      $('#tbl-scen').innerHTML = '';
+      return;
+    }
+    $('#scen-note').textContent = `Geçmiş dönemlerde en düşük tabanın başarı sırası, o döneme kadar bu kadroya yerleşen kişi sayısının ortalama ${F1.format(Math.exp(fit.max.mu))} katı oldu (${fit.pts.length} alım). Nitelik şartları ve il tercihleri modele girmez; "tüm illeri tercih eden" en iyimser senaryodur.`;
     let h = '<thead><tr><th>Alım</th><th>Tür</th><th class="r">Puan yılı</th><th class="r">Bu alımda</th><th class="r">Dönem toplamı</th><th class="r">En düşük taban sırası</th><th class="r">Oran</th></tr></thead><tbody>';
     fit.pts.slice().sort((a, b) => (P[b.pi].date < P[a.pi].date ? -1 : 1)).forEach((p) => {
       h += `<tr><td data-label="Alım" class="wide"><b>KPSS-${esc(P[p.pi].id)}</b> <span class="small muted">${fDate(P[p.pi].date)}</span></td><td data-label="Tür">${esc(P[p.pi].kind)}</td><td data-label="Puan yılı" class="r num">${p.y}</td><td data-label="Bu alımda" class="r num">${fInt(p.H)}</td><td data-label="Dönem toplamı" class="r num">${fInt(p.C)}</td><td data-label="En düşük taban sırası" class="r num">${fInt(p.rmax)}</td><td data-label="Oran" class="r num">${F1.format(p.kmax)}</td></tr>`;
@@ -692,7 +764,12 @@
     { k: 'diger', ad: 'Diğer şartlar', cls: 'info', test: () => true,
       nasil: 'Kılavuzdaki açıklamayı dikkatle oku; şartı belgeyle kanıtlayabilmen gerekir.' },
   ];
-  const catOf = (text) => NIT_GUIDE.find((g) => g.test(text || ''));
+  const catMemo = new Map();
+  function catOf(text) {
+    let c = catMemo.get(text);
+    if (!c) { c = NIT_GUIDE.find((g) => g.test(text || '')); catMemo.set(text, c); }
+    return c;
+  }
   const NIT_PIDS = Object.keys(NIT).sort((a, b) => (a < b ? 1 : -1));
   const nitIndex = {};
   function rowIndexFor(pid) {
@@ -711,7 +788,8 @@
       .replace(/ lisans programından| önlisans programından| lisans programlarının birinden| önlisans programlarının birinden/gi, '');
     return t.length > 60 ? t.slice(0, 58) + '…' : t;
   }
-  function reqChips(pid, kod) {
+  // mine: kullanıcının karşıladığı mezuniyet kodları, q: aranan bölüm (büyük harf) — verilirse o şart "✓ bölüm adı" olarak yazılır
+  function reqChips(pid, kod, mine = null, q = '') {
     const n = NIT[pid];
     if (!n) return '';
     const codes = n.kodlar[kod] || [];
@@ -719,6 +797,11 @@
     return '<div class="req">' + codes.map((c) => {
       const txt = n.sozluk[String(c)] || ('Kod ' + c);
       const cat = catOf(txt);
+      if (mine && mine.has(c)) {
+        const names = progNames(txt);
+        const name = (q && (names.find((p) => up(p) === q) || names.find((p) => up(p).startsWith(q)))) || nitShort(txt);
+        return `<span class="req-chip ok" title="${esc(c + ' · ' + txt)}">✓ ${esc(name)}</span>`;
+      }
       const label = cat.k === 'ozel' ? 'Özel şart: ' + txt.replace(/^Bakınız:\s*Başvurma Özel Şartları\s*-\s*/i, '') : nitShort(txt);
       return `<span class="req-chip ${cat.cls}" title="${esc(c + ' · ' + txt + ' — Nasıl sağlanır: ' + cat.nasil)}">${esc(label)}</span>`;
     }).join('') + '</div>';
@@ -728,10 +811,7 @@
     if (!state.nplace || (state.nplace !== 'all' && !NIT[state.nplace])) state.nplace = 'all';
     sel.innerHTML = `<option value="all">Son ${NIT_PIDS.length} kılavuzun tümü</option>` + NIT_PIDS.map((pid) => { const p = P.find((x) => x.id === pid && !x.user); return `<option value="${esc(pid)}">KPSS-${esc(pid)}${p ? ' · ' + esc(p.kind) : ''}</option>`; }).join('');
     sel.value = state.nplace;
-    if (document.activeElement !== $('#in-bolum')) $('#in-bolum').value = state.bolum || '';
-    if (document.activeElement !== $('#in-nkod')) $('#in-nkod').value = state.nkod || '';
     $('#in-nstrict').checked = !!state.nstrict;
-    renderHasChips();
     renderBolum();
     renderGroupReqs();
     $('#nit-guide').innerHTML = NIT_GUIDE.filter((g) => g.k !== 'diger').map((g) =>
@@ -740,10 +820,13 @@
   const scopePids = () => (state.nplace && state.nplace !== 'all' && NIT[state.nplace] ? [state.nplace] : NIT_PIDS);
   const isEduCode = (c) => '234'.includes(String(c)[0]);
   const isHard = (txt) => !['ozel', 'kosul', 'diger', 'edu'].includes(catOf(txt).k);
-  function renderHasChips() {
-    const lv = LV[state.level];
+  // "Bilgilerin" formundaki belge seçimi: bu düzeyde en çok istenen belge şartları (düzey başına bir kez sayılır).
+  const docMemo = {};
+  function docCounts(level) {
+    if (docMemo[level]) return docMemo[level];
+    const lv = LV[level];
     const cnt = new Map();
-    for (const pid of scopePids()) {
+    for (const pid of NIT_PIDS) {
       const n = NIT[pid];
       for (const [kod, codes] of Object.entries(n.kodlar)) {
         if (kod[0] !== lv.kodBas) continue;
@@ -757,30 +840,151 @@
         }
       }
     }
+    return (docMemo[level] = [...cnt.entries()].sort((a, b) => b[1].n - a[1].n));
+  }
+  function renderHasChips() {
     const have = new Set((state.nhas || []).map(Number));
-    const top = [...cnt.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 14);
+    const all = docCounts(state.level);
+    const top = all.slice(0, 10).concat(all.slice(10).filter(([c]) => have.has(c)));
+    const short = (t) => { const s = nitShort(t).replace(/\.$/, ''); return s.length > 40 ? s.slice(0, 38) + '…' : s; };
     $('#nhas-chips').innerHTML = top.length ? top.map(([c, e]) =>
-      `<button type="button" class="chip" data-has="${c}" aria-pressed="${have.has(c)}" title="${esc(c + ' · ' + e.t)}">${esc(nitShort(e.t))} · ${c}</button>`).join('')
-      : '<span class="small muted">Bu kılavuzlarda belge şartı bulunmadı.</span>';
+      `<button type="button" class="chip doc" data-has="${c}" aria-pressed="${have.has(c)}" title="${esc(c + ' · ' + e.t)}">${esc(short(e.t))} · ${c}</button>`).join('')
+      : '<span class="small muted">Bu düzeyde belge şartı bulunmadı.</span>';
+    $('#docs-sum').textContent = 'Sahip olduğun belge ve şartları seç' + (have.size ? ` · ${have.size} seçili` : '');
   }
-  // Açıklamadaki program adlarından biri aranan kelimeyle BAŞLIYORSA eşleşir ("İşletme" → İşletme, İşletme-Ekonomi; Gemi Makineleri İşletme Müh. değil)
-  function progMatch(text, q) {
-    const body = String(text || '').replace(/ortaöğretim kurumlarının/i, '').replace(/\s*(lisans|önlisans|ön lisans)?\s*program(lar)?(ının birinden|ından)?\s*mezun olmak\.?$/i, '')
-      .replace(/\s*(dalının|dalından|alanının|alanından)\s*(birinden)?\s*mezun olmak\.?$/i, '');
-    return body.split(/,\s*|\s+veya\s+|\s+ya da\s+|\s+-\s+/).some((prog) => up(prog).trim().startsWith(q));
+  const typedCodes = () => (String(state.nkod || '').match(/\d{4}/g) || []).map(Number);
+  // Bölüm adını bu düzeyin mezuniyet kodlarıyla eşleştirir (tüm kılavuzlar; kod numaraları kılavuzlar arasında ortak).
+  const bolumMemo = { key: null, map: null };
+  function matchBolum(q) {
+    const lv = LV[state.level];
+    const key = state.level + '|' + q;
+    if (bolumMemo.key === key) return bolumMemo.map;
+    const found = new Map();
+    if (q.length >= 3) {
+      for (const pid of NIT_PIDS) {
+        for (const [c, t] of Object.entries(NIT[pid].sozluk)) {
+          if (c[0] !== lv.edu || c === String(lv.generic) || found.has(+c)) continue;
+          const rank = progRank(t, q);
+          if (rank >= 0) found.set(+c, [rank, t]);
+        }
+      }
+    }
+    // Bölüm adı tam yazıldıysa ("İşletme") yalnız bu programı içeren kodlar; yarım yazıldıysa ("Hemşire") bu adla başlayanlar.
+    // Sıra: en alakalı önce (aranan adla başlayan programı çok olan, sonra kısa açıklamalı kodlar)
+    const exact = [...found.values()].some(([r]) => r < 1);
+    const map = new Map([...found.entries()].filter(([, [r]]) => !exact || r < 1)
+      .sort((a, b) => a[1][0] - b[1][0] || a[1][1].length - b[1][1].length).map(([c, [, t]]) => [c, t]));
+    bolumMemo.key = key;
+    bolumMemo.map = map;
+    return map;
   }
-  function renderBolum() {
-    const card = $('#bolum-card'), info = $('#bolum-codes');
-    const q = up(state.bolum).trim();
-    const typed = (String(state.nkod || '').match(/\d{4}/g) || []).map(Number);
+  // Bölümden eşleşen + elle yazılan mezuniyet kodları (kod → açıklama)
+  function eduMatches(q, typed) {
+    const map = new Map(matchBolum(q));
+    for (const c of typed.filter(isEduCode)) {
+      if (map.has(c)) continue;
+      const pid = NIT_PIDS.find((p) => NIT[p].sozluk[String(c)]);
+      map.set(c, pid ? NIT[pid].sozluk[String(c)] : 'Kod ' + c);
+    }
+    return map;
+  }
+  function renderBolumHint() {
+    const el = $('#bolum-hint');
+    const q = up(state.bolum).trim(), typed = typedCodes();
+    el.className = 'hint';
     if (q.length < 3 && !typed.some(isEduCode)) {
-      card.hidden = true;
-      info.textContent = 'Bölümünü ya da nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Mezuniyet kodun eşleşen ve "herhangi bir bölümden mezun" isteyen kadrolar listelenir; sertifika, ehliyet gibi diğer şartlar senin seçtiklerinle karşılaştırılır.';
+      el.textContent = q ? 'En az 3 harf yaz.' : 'Bölüm adını tercih kılavuzundaki mezuniyet kodlarıyla eşleştiririz.';
       return;
     }
-    const found = findKadros(scopePids(), q, typed, user());
-    const matchedAll = found.matched;
-    const items = state.nstrict ? found.items.filter((it) => !it.missing.length) : found.items;
+    const m = [...eduMatches(q, typed).entries()];
+    if (!m.length) {
+      const sug = q.length >= 3 ? suggestBolum(q) : [];
+      el.className = 'hint err';
+      el.innerHTML = 'Bu adla bölüm bulunamadı. ' + (sug.length
+        ? 'Bunu mu demek istedin: ' + sug.map((p) => `<button type="button" class="btn-link" data-act="set-bolum" data-val="${esc(p)}">${esc(p)}</button>`).join(', ') + '?'
+        : 'Yazımı kontrol et ya da mezuniyet kodunu yaz (ör. 4605).');
+      return;
+    }
+    if (q.length < 3) {
+      el.innerHTML = 'Mezuniyet kodun: ' + m.slice(0, 2).map(([c, t]) => `<b>${c}</b> ${esc(nitShort(t))}`).join(' · ');
+      return;
+    }
+    const names = new Set();
+    for (const [, tx] of m) for (const p of progNames(tx)) if (up(p).startsWith(q)) names.add(p);
+    const exactName = [...names].find((p) => up(p) === q);
+    const shown = exactName ? [exactName] : [...names].slice(0, 3);
+    el.innerHTML = `Eşleşen bölüm: ${shown.map((p) => `<b>${esc(p)}</b>`).join(', ')}${!exactName && names.size > 3 ? ` ve ${names.size - 3} bölüm daha` : ''}`
+      + ` · ${m.length} mezuniyet kodu (${m.slice(0, 4).map(([c]) => c).join(', ')}${m.length > 4 ? '…' : ''})`;
+  }
+  // Mezuniyet açıklamasındaki program adları ("A, B veya C lisans programlarının birinden mezun olmak" → [A, B, C])
+  function progNames(text) {
+    const body = String(text || '').replace(/ortaöğretim kurumlarının/i, '').replace(/\s*(lisans|önlisans|ön lisans)?\s*program(lar)?(ının birinden|ından)?\s*mezun olmak\.?$/i, '')
+      .replace(/\s*(dalının|dalından|alanının|alanından)\s*(birinden)?\s*mezun olmak\.?$/i, '');
+    return body.split(/,\s*|\s+veya\s+|\s+ya da\s+|\s+-\s+/).map((p) => p.trim()).filter(Boolean);
+  }
+  // Program adlarından biri aranan kelimeyle BAŞLIYORSA eşleşir ("İşletme" → İşletme, İşletme-Ekonomi; Gemi Makineleri İşletme Müh. değil).
+  // 0 = adı birebir aynı, 1 = adı bununla başlıyor, -1 = eşleşmiyor
+  // Küçük değer = daha alakalı: adı birebir aynı olan program varsa 0'a, aranan adla başlayan program sayısı arttıkça aşağı yakın.
+  function progRank(text, q) {
+    let exact = false, hits = 0;
+    for (const p of progNames(text)) {
+      const u = up(p);
+      if (!u.startsWith(q)) continue;
+      hits++;
+      if (u === q) exact = true;
+    }
+    return hits ? (exact ? 0 : 1) + 1 / (1 + hits) : -1;
+  }
+  const progMatch = (text, q) => progRank(text, q) >= 0;
+  // Yazım hatasına öneri: bu düzeyin program adları içinde en yakın 3 ad (ör. "Hemşirlik" → Hemşirelik)
+  const namesMemo = {};
+  function suggestBolum(q) {
+    const lv = LV[state.level];
+    if (!namesMemo[state.level]) {
+      const set = new Set();
+      for (const pid of NIT_PIDS) for (const [c, t] of Object.entries(NIT[pid].sozluk)) if (c[0] === lv.edu && c !== String(lv.generic)) progNames(t).forEach((p) => { if (p.length >= 3 && p.length <= 60) set.add(p); });
+      namesMemo[state.level] = [...set];
+    }
+    const lev = (a, b) => {
+      let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+      for (let i = 1; i <= a.length; i++) {
+        const cur = [i];
+        for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = cur;
+      }
+      return prev[b.length];
+    };
+    const tol = Math.max(1, Math.floor(q.length / 4));
+    return namesMemo[state.level].map((p) => {
+      const u = up(p);
+      const d = Math.min(lev(q, u.slice(0, q.length)), lev(q, u.slice(0, q.length + 1)), lev(q, u.slice(0, Math.max(1, q.length - 1))));
+      return [p, d + (u.length - q.length) / 200];
+    }).filter(([, d]) => d <= tol + 0.99).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([p]) => p);
+  }
+  function renderBolum() {
+    const card = $('#bolum-card'), info = $('#bolum-codes'), emp = $('#bolum-empty');
+    const bolum = String(state.bolum || '').trim();
+    const q = up(bolum);
+    const typed = typedCodes();
+    const docs = (state.nhas || []).length;
+    $('#nit-using').innerHTML = `<span>Bölüm: <b>${esc(bolum || '—')}</b></span><span>Kodlar: <b>${typed.length ? esc(typed.join(', ')) : '—'}</b></span><span>Belgeler: <b>${docs ? fInt(docs) + ' seçili' : '—'}</b></span><button type="button" class="btn-link" data-act="focus-bolum">Bilgilerini değiştir</button>`;
+    const stop = (html) => { card.hidden = true; info.textContent = ''; emp.innerHTML = html; };
+    if (q.length < 3 && !typed.some(isEduCode)) {
+      return stop(emptyHTML({ icon: 'edit', compact: true, title: 'Bölümünü yaz',
+        text: 'Başvurabileceğin kadroları görmek için yukarıdaki <b>Bilgilerin</b> bölümüne mezun olduğun bölümü ya da mezuniyet nitelik kodunu yaz.', actions: [['Bölümünü yaz', 'focus-bolum', true]] }));
+    }
+    const all = findKadros(scopePids(), q, typed, user());
+    const matchedAll = eduMatches(q, typed);
+    const items = state.nstrict ? all.filter((it) => !it.missing.length) : all;
+    if (!items.length) {
+      const acts = [];
+      if (state.nstrict && all.length) acts.push(['Eksik şartlı kadroları da göster', 'nit-loose', true]);
+      if (state.nplace !== 'all') acts.push(['Tüm kılavuzlarda ara', 'nit-all', !acts.length]);
+      acts.push(['Bölümünü düzelt', 'focus-bolum', !acts.length]);
+      return stop(emptyHTML({ title: 'Sonuç yok', actions: acts,
+        text: matchedAll.size ? 'Seçtiğin kılavuzlarda bölümünle başvurabileceğin kadro bulunamadı.' : `<b>“${esc(bolum)}”</b> adında bir bölüm bulamadık; yazımı kontrol et ya da mezuniyet kodunu yaz.` }));
+    }
+    emp.innerHTML = '';
     const order = { ok: 0, warn: 1, bad: 2, none: 3 };
     const tb = (it) => (it.r && it.r[COL.min] != null ? it.r[COL.min] : 999);
     items.sort((a, b) => ((a.missing.length > 0) - (b.missing.length > 0)) || (order[a.reach] - order[b.reach]) || (b.own - a.own) || (tb(a) - tb(b)));
@@ -820,14 +1024,11 @@
   // Verilen kılavuzlarda, bölüm/kod ile eğitim şartı tutan kadroları; eksik şartları ve taban durumuyla döndürür.
   function findKadros(pids, q, typed, u) {
     const lv = LV[state.level];
-    const typedEdu = typed.filter(isEduCode);
+    const mine = new Set([...typed.filter(isEduCode), ...matchBolum(q).keys()]);
     const have = new Set([...(state.nhas || []).map(Number), ...typed.filter((c) => !isEduCode(c))]);
-    const items = [], matched = new Map();
+    const items = [];
     for (const pid of pids) {
       const n = NIT[pid];
-      const mine = new Set(typedEdu);
-      if (q.length >= 3) for (const [c, t] of Object.entries(n.sozluk)) if (c[0] === lv.edu && c !== String(lv.generic) && progMatch(t, q)) { mine.add(+c); matched.set(+c, t); }
-      typedEdu.forEach((c) => { if (n.sozluk[String(c)]) matched.set(c, n.sozluk[String(c)]); });
       const idx = rowIndexFor(pid);
       const p = P.find((x) => x.id === pid && !x.user);
       const thr = p ? threshold(p, state.level, u) : null;
@@ -843,45 +1044,86 @@
         items.push({ pid, kod, own, missing, r, reach, thr });
       }
     }
-    return { items, matched };
+    return items;
   }
-  let qsLimit = 24;
+  let qsLimit = 0, qsNear = false; // 0 = ilk sayfa; qsNear: sınırda kalanları da göster
+  const qsFirst = () => (innerWidth < 640 ? 5 : 8);
+  const resetQuick = () => { qsLimit = 0; qsNear = false; };
+  // Hızlı arama için eksik zorunlu bilgi: puan ya da bölüm/mezuniyet kodu.
+  function quickNeed() {
+    if (user().score == null) return '#in-score';
+    if (up(state.bolum).trim().length < 3 && !typedCodes().some(isEduCode)) return '#in-bolum';
+    return null;
+  }
+  const QS_WHERE = { all: '2025–2026 alımlarında', 2026: 'KPSS-2026/1 alımında', past: '2025 alımlarında' };
   function renderQuick() {
     $$('#qs-year button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.y === state.qyear)));
-    const box = $('#qs-results'), info = $('#qs-info'), more = $('#qs-more');
+    const sum = $('#qs-summary'), box = $('#qs-results'), more = $('#qs-more');
+    const show = (summary, cards = '') => { sum.innerHTML = summary; box.innerHTML = cards; more.hidden = true; };
+    if (!NIT_PIDS.length) return show(emptyHTML({ icon: 'info', tone: 'warn', title: 'Nitelik verisi yüklenemedi', text: 'Sayfayı yenilemeyi dene.' }));
+    const need = quickNeed();
+    if (need === '#in-score') {
+      return show(emptyHTML({ icon: 'edit', title: 'Önce puanını yaz', actions: [['Puanını yaz', 'focus-score', true]],
+        text: 'Yukarıdaki <b>Bilgilerin</b> bölümüne 2026 KPSS puanını ve mezun olduğun bölümü yaz; girebileceğin kadrolar burada listelenir.' }));
+    }
+    if (need === '#in-bolum') {
+      return show(emptyHTML({ icon: 'edit', title: 'Bölümünü yaz', actions: [['Bölümünü yaz', 'focus-bolum', true]],
+        text: 'Kadroların çoğu belirli bölümlerden mezun ister. Bölümünü (ör. <b>Hemşirelik</b>, <b>İşletme</b>) ya da mezuniyet nitelik kodunu (ör. <b>4605</b>) yaz.' }));
+    }
     const u = user();
-    const typed = (String(state.nkod || '').match(/\d{4}/g) || []).map(Number);
-    const q = up(state.bolum).trim();
-    const stop = (msg, need = null) => { info.textContent = msg; box.innerHTML = ''; more.hidden = true; return need; };
-    if (!NIT_PIDS.length) return stop('Nitelik verisi yüklenemedi.');
-    if (u.score == null) return stop('Puanını yaz; ardından bölümünü ya da nitelik kodunu gir.', '#qs-score');
-    if (q.length < 3 && !typed.some(isEduCode)) return stop('Bölümünü (en az 3 harf) ya da mezuniyet nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Sertifika, ehliyet gibi kodları da ekleyebilirsin (ör. 6225, 6506).', '#qs-bolum');
+    const q = up(state.bolum).trim(), typed = typedCodes();
     const pids = NIT_PIDS.filter((pid) => state.qyear === 'all' || (state.qyear === '2026' ? pid.startsWith('2026') : !pid.startsWith('2026')));
-    const { items } = findKadros(pids, q, typed, u);
-    const ok = items.filter((it) => !it.missing.length && it.reach === 'ok');
-    const near = items.filter((it) => !it.missing.length && it.reach === 'warn').length;
+    const items = findKadros(pids, q, typed, u);
+    const byTaban = (a, b) => b.r[COL.min] - a.r[COL.min];
+    const ok = items.filter((it) => !it.missing.length && it.reach === 'ok').sort(byTaban);
+    const near = items.filter((it) => !it.missing.length && it.reach === 'warn').sort(byTaban);
     const miss = items.filter((it) => it.missing.length && it.reach === 'ok').length;
-    ok.sort((a, b) => (b.r[COL.min] - a.r[COL.min]));
-    info.innerHTML = (state.example ? '<b>Örnek puan</b> kullanılıyor; kendi puanını yaz. ' : '') + `${pids.map((p) => 'KPSS-' + esc(p)).join(', ')} içinde bu bilgilerle <b>${fInt(ok.length)}</b> kadroya girebilirdin (tüm şartlarını sağladığın ve ${state.mode === 'rank' ? 'sıralamanın' : 'puanının'} tabanı geçtiği kadrolar; en yüksek tabandan başlayarak).`
-      + (near ? ` ${fInt(near)} kadroda sınırdasın.` : '')
-      + (miss ? ` ${fInt(miss)} kadroda puanın yetiyor ama bir belge şartın eksik; ayrıntı "Nitelik şartları" sekmesinde.` : '')
-      + ' Tabanlar o dönemin sonuçlarıdır; yeni alımlarda değişebilir.';
-    box.innerHTML = ok.slice(0, qsLimit).map((it) => {
-      const r = it.r;
-      return `<article class="qs-item"><span class="t">${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</span>
-        <span class="meta">${esc(DICT.kurum[r[COL.kurum]])} · ${esc(trTitle(DICT.il[r[COL.il]]))}</span>
-        <span class="tb"><span>Taban <b class="tnum">${fSc(r[COL.min], 2)}</b></span><span>Senin karşılığın <b class="tnum hl">${fSc(it.thr, 2)}</b></span></span>
-        <span class="meta">KPSS-${esc(it.pid)} · ${r[COL.kont]} kontenjan · kod ${esc(it.kod)}</span>
-        ${reqChips(it.pid, it.kod)}</article>`;
-    }).join('') || '<p class="muted small">Bu bilgilerle tabanını geçtiğin ve tüm şartlarını sağladığın kadro bulunamadı. Dönemi "Tümü" yap ya da nitelik kodlarını kontrol et.</p>';
-    more.hidden = ok.length <= qsLimit;
-    if (!more.hidden) more.textContent = `Daha fazla göster (${fInt(ok.length - qsLimit)} kadro daha)`;
+    const noMatch = !eduMatches(q, typed).size;
+    const where = QS_WHERE[state.qyear] || QS_WHERE.all;
+    if (!ok.length && !(qsNear && near.length)) {
+      const acts = [];
+      if (state.qyear !== 'all') acts.push(['Tüm dönemlerde ara', 'qs-all', true]);
+      if (near.length) acts.push([`Sınırda kalan ${fInt(near.length)} kadroyu göster`, 'qs-near', !acts.length]);
+      if (miss) acts.push([`Belgesi eksik ${fInt(miss)} kadroya bak`, 'go-nitelik', !acts.length]);
+      const sug = noMatch && q.length >= 3 ? suggestBolum(q) : [];
+      if (sug.length) acts.unshift([`“${sug[0]}” ile ara`, 'set-bolum', true, sug[0]]);
+      if (noMatch) acts.push(['Bölüm adını düzelt', 'focus-bolum', !acts.length]);
+      return show(emptyHTML({ title: 'Sonuç yok', actions: acts,
+        text: `${esc(where)} bu bilgilerle tabanını geçtiğin ve tüm şartlarını sağladığın kadro bulunamadı.`
+          + (noMatch ? ` <b>“${esc(String(state.bolum).trim())}”</b> adında bir bölüm bulamadık; yazımı kontrol et.` : '')
+          + (acts.length ? ' Şunları deneyebilirsin:' : ' Puanını ya da bölümünü değiştirip yeniden dene.') }));
+    }
+    const extras = [];
+    if (near.length) extras.push(`<button type="button" class="chip" data-act="qs-near" aria-pressed="${qsNear}">${qsNear ? 'Sınırda kalanları gizle' : `+ Sınırda kalan ${fInt(near.length)} kadro`}</button>`);
+    if (miss) extras.push(`<button type="button" class="chip" data-act="go-nitelik">Belgesi eksik ${fInt(miss)} kadro →</button>`);
+    sum.innerHTML = `<div class="qs-sum${ok.length ? '' : ' warn'}">
+        <p class="qs-count"><b>${fInt(ok.length)}</b><span>kadroya girebilirdin${ok.length ? '' : ` · sınırda kalan ${fInt(near.length)} kadro aşağıda`}</span></p>
+        ${extras.length ? `<div class="qs-extra">${extras.join('')}</div>` : ''}
+        <p class="qs-note">${esc(where)}, ${state.mode === 'rank' ? 'sıralamana' : 'puanına'} göre; en yüksek tabandan başlayarak. Tabanlar o dönemin sonuçlarıdır, yeni alımlarda değişebilir.${noMatch ? ' <b>Bölüm adın eşleşmedi; yalnız her bölüme açık kadrolar listelendi.</b>' : ''}${state.example ? ' <b>Örnek puan kullanılıyor; kendi puanını yaz.</b>' : ''}</p>
+      </div>`;
+    const list = qsNear ? ok.concat(near) : ok;
+    const lim = qsLimit || qsFirst();
+    const mine = new Set(eduMatches(q, typed).keys());
+    box.innerHTML = list.slice(0, lim).map((it) => qsCard(it, mine, q)).join('');
+    more.hidden = list.length <= lim;
+    if (!more.hidden) more.textContent = `Daha fazla göster (${fInt(list.length - lim)} kadro daha)`;
+  }
+  function qsCard(it, mine, q) {
+    const r = it.r, diff = it.thr - r[COL.min];
+    const near = it.reach !== 'ok';
+    return `<article class="qs-item${near ? ' near' : ''}">
+      <div class="qs-top"><span class="t">${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</span>
+        <span class="margin ${near ? 'warn' : 'ok'}" title="O dönemin karşılığındaki puanın ile taban arasındaki fark">${near ? fSc(-diff, 2) + ' puan eksik' : diff < 0.005 ? 'Tabana eşit' : '+' + fSc(diff, 2) + ' puan'}</span></div>
+      <span class="kurum">${esc(DICT.kurum[r[COL.kurum]])}</span>
+      <div class="qs-meta"><b>${esc(trTitle(DICT.il[r[COL.il]]))}</b><span>${r[COL.kont]} kontenjan</span><span>KPSS-${esc(it.pid)}</span><span class="code">${esc(it.kod)}</span></div>
+      <div class="qs-scores"><span>Taban <b class="tnum">${fSc(r[COL.min], 2)}</b></span><span>Senin karşılığın <b class="tnum hl">${fSc(it.thr, 2)}</b></span></div>
+      ${reqChips(it.pid, it.kod, mine, q)}</article>`;
   }
   function syncInputs() {
-    const pairs = [['#in-score', 'score'], ['#qs-score', 'score'], ['#in-rank', 'rank'], ['#qs-rank', 'rank'],
-      ['#in-bolum', 'bolum'], ['#qs-bolum', 'bolum'], ['#in-nkod', 'nkod'], ['#qs-kod', 'nkod']];
-    for (const [sel, k] of pairs) { const el = $(sel); if (el && document.activeElement !== el) el.value = state[k] || ''; }
-    $('#qs-level').value = state.level;
+    for (const [sel, k] of [['#in-score', 'score'], ['#in-rank', 'rank'], ['#in-bolum', 'bolum'], ['#in-nkod', 'nkod']]) {
+      const el = $(sel);
+      if (document.activeElement !== el) el.value = state[k] || '';
+    }
   }
   function renderGroupReqs() {
     const g = grpIdx();
@@ -910,7 +1152,10 @@
       if (local) used.push(`KPSS-${pid} (${fInt(local)})`);
     }
     $('#nit-group-sub').textContent = total ? `${used.join(', ')} kılavuzlarındaki ${fInt(total)} ${low(lv.ad)} kadrosuna göre. Yüzde, şartı isteyen kadroların oranı.` : '';
-    if (!total) { $('#nit-group').innerHTML = '<p class="muted small">Bu kadro için son kılavuzlarda veri yok.</p>'; return; }
+    if (!total) {
+      $('#nit-group').innerHTML = emptyHTML({ icon: 'info', compact: true, flat: true, title: 'Kılavuz verisi yok', text: `Son kılavuzlarda <b>${esc(gname)}</b> kadrosu bulunmuyor.`, actions: [['Başka bir kadro seç', 'focus-group']] });
+      return;
+    }
     const top = [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
     $('#nit-group').innerHTML = top.map(([key, n]) => {
       const code = key.split('|')[0], txt = key.slice(key.indexOf('|') + 1);
@@ -938,6 +1183,7 @@
     const u = user();
     const pi = P.findIndex((p) => placeKey(p) === state.place);
     const t = $('#tbl-list');
+    $('#list-empty').innerHTML = '';
     if (pi < 0) { t.innerHTML = ''; $('#list-pager').innerHTML = ''; return; }
     const p = P[pi], lv = p.levels[state.level];
     const thr = threshold(p, state.level, u);
@@ -973,7 +1219,15 @@
         ${hasNit ? `<td data-label="Nitelik şartları" class="wide">${reqChips(p.id, r[COL.kod])}</td>` : ''}
         <td data-label="Senin için"><span class="pill ${r[COL.min] == null ? 'none' : st}">${lbl}</span></td></tr>`;
     }
-    t.innerHTML = items.length ? h + '</tbody>' : '<tbody><tr><td class="muted" style="padding:16px">Eşleşen kadro yok.</td></tr></tbody>';
+    t.innerHTML = items.length ? h + '</tbody>' : '';
+    if (!items.length) {
+      const acts = [];
+      if (state.q) acts.push(['Aramayı temizle', 'list-clear-q', true]);
+      if (state.scope === 'group') acts.push(['Tüm unvanları göster', 'list-all', !acts.length]);
+      if (state.il) acts.push([trTitle(state.il) + ' filtresini kaldır', 'clear-il', !acts.length]);
+      $('#list-empty').innerHTML = emptyHTML({ compact: true, flat: true, title: 'Eşleşen kadro yok', actions: acts,
+        text: state.q ? `<b>“${esc(state.q)}”</b> aramasıyla bu yerleştirmede kadro bulunamadı.` : `Bu yerleştirmede <b>${esc(groupLabel(state.group))}</b> kadrosu yok.` });
+    }
     $('#list-pager').innerHTML = `<span class="small muted">${fInt(items.length)} kadro · ${lv.scoreYear} puanlarıyla${thr != null ? ' · karşılaştırılan puanın <span class="hl tnum">' + fSc(thr, 2) + '</span>' : ''}${hasNit ? ' · şartların üzerine gelince açıklaması görünür' : ' · bu dönem için nitelik verisi eklenmedi'}</span>
       <span style="display:flex;gap:8px;align-items:center"><button class="btn" type="button" id="pg-prev" ${state.page <= 0 ? 'disabled' : ''}>Önceki</button><span class="small tnum">${state.page + 1} / ${pages}</span><button class="btn" type="button" id="pg-next" ${state.page >= pages - 1 ? 'disabled' : ''}>Sonraki</button></span>`;
     $('#pg-prev').addEventListener('click', () => { state.page--; renderList(); });
@@ -1196,7 +1450,7 @@
     $('#method').innerHTML = `
       <h3>Veri</h3>
       <p>ÖSYM'nin yayımladığı ${BASE_P} yerleştirmenin (KPSS-${esc(first.id)}, ${fDate(first.date)} → KPSS-${esc(last.id)}, ${fDate(last.date)}) "En Küçük ve En Büyük Puanlar" belgeleri satır satır okundu: kadro kodu, kurum, il, kadro unvanı, kontenjan, yerleşen sayısı, taban ve tavan puan. Toplam ${fInt(BASE_ROWS)} satır, ${fInt(totalK)} kadro. Her yerleştirmede kontenjan ve yerleşen toplamları ÖSYM'nin özet belgeleriyle birebir aynı.</p>
-      <p>Nitelik şartları KPSS-2026/1, 2025/2 ve 2025/5 tercih kılavuzlarındaki kadro tablolarından ve nitelik kodu listelerinden alındı (${fInt(nitN)} kadro).</p>
+      <p>Nitelik şartları ${NIT_PIDS.map((p) => 'KPSS-' + esc(p)).join(', ')} tercih kılavuzlarındaki kadro tablolarından ve nitelik kodu listelerinden alındı (${fInt(nitN)} kadro).</p>
       <h3>Puandan başarı sırasına</h3>
       <p>KPSS puanı, ağırlıklı standart puanın doğrusal bir dönüşümüdür: <code>KPSS = 70 + 30·[2(ASP−X) − S] / [2(B−X) − S]</code> (2026 Lisans Kılavuzu). 13 adet 2026 sonuç belgesindeki doğru/yanlış sayıları bu formülle puanı 0,0002 farkla veriyor; belgelerdeki 39 puan–sıra noktası ${fInt(m26.n)} adaylık 2026 dağılımını oluşturuyor. Önceki yıllar aynı eğri şekliyle, o yılın ölçeği ve aday sayısıyla uyarlandı ve 2018–2020 ÖSYM puan dağılımlarıyla sınandı.</p>
       <h3>Yıllar arası karşılaştırma</h3>
@@ -1221,8 +1475,10 @@
   }
 
   // ---------------------------------------------------------------- sekmeler ve olaylar
-  const TABS = ['gecmis', 'ihtimal', 'liste', 'nitelik', 'kadro2026', 'veri', 'yontem'];
+  const TABS = ['gecmis', 'liste', 'nitelik', 'kadro2026', 'yontem'];
+  const TAB_ALIAS = { ihtimal: 'yontem', veri: 'yontem' }; // eski bağlantılar
   function selectTab(id, push = true) {
+    id = TAB_ALIAS[id] || id;
     if (!TABS.includes(id)) id = 'gecmis';
     state.tab = id;
     TABS.forEach((t) => { $('#' + t).hidden = t !== id; $('#t-' + t).setAttribute('aria-selected', String(t === id)); });
@@ -1233,13 +1489,28 @@
   function renderTab() {
     const t = state.tab;
     if (t === 'gecmis') renderGecmis();
-    else if (t === 'ihtimal') renderIhtimal();
     else if (t === 'liste') renderList();
     else if (t === 'nitelik') renderNitelik();
     else if (t === 'kadro2026') render2026();
-    else if (t === 'veri') renderVeri();
+    else if (t === 'yontem') { renderModelTable(); renderVeri(); }
   }
-  function refreshAll() { syncInputs(); renderVerdict(user()); renderQuick(); renderTab(); }
+  function refreshAll() { syncInputs(); renderHasChips(); renderBolumHint(); renderGroupChips(); renderVerdict(user()); renderQuick(); renderTab(); }
+  // Boş durum ve kısayol düğmelerinin (data-act) işleri
+  const ACTIONS = {
+    'set-bolum': (b) => { state.bolum = b.dataset.val; state.bpage = 0; resetQuick(); save(); refreshAll(); },
+    'focus-score': () => focusField('#in-score'),
+    'focus-bolum': () => focusField('#in-bolum'),
+    'focus-group': () => focusField('#in-group'),
+    'qs-all': () => { state.qyear = 'all'; resetQuick(); save(); renderQuick(); },
+    'qs-near': () => { qsNear = !qsNear; qsLimit = 0; renderQuick(); },
+    'go-nitelik': () => { state.nstrict = false; state.bpage = 0; selectTab('nitelik'); goTo($('#nitelik')); },
+    'clear-il': () => { state.il = ''; elIl.value = ''; save(); refreshAll(); },
+    'clear-kind': () => { state.kind = ''; $('#in-kind').value = ''; save(); refreshAll(); },
+    'list-clear-q': () => { state.q = ''; $('#in-q').value = ''; state.page = 0; save(); renderList(); },
+    'list-all': () => { state.scope = 'all'; $('#in-scope').value = 'all'; state.page = 0; save(); renderList(); },
+    'nit-loose': () => { state.nstrict = false; state.bpage = 0; save(); renderNitelik(); },
+    'nit-all': () => { state.nplace = 'all'; state.bpage = 0; save(); renderNitelik(); },
+  };
   let timer = null;
   function soon(fn = refreshAll, ms = 140) { clearTimeout(timer); timer = setTimeout(() => { save(); fn(); }, ms); }
 
@@ -1253,14 +1524,14 @@
     $('#in-c0').value = state.C0 || '0';
     renderMethod();
     $$('#level-seg button').forEach((b) => b.addEventListener('click', () => {
-      state.level = b.dataset.level; state.sel = null; state.place = null; state.K = null; state.bpage = 0;
+      state.level = b.dataset.level; state.sel = null; state.place = null; state.K = null; state.bpage = 0; resetQuick();
       syncSegs(); fillGroups(); save(); refreshAll();
     }));
     $$('#mode-seg button').forEach((b) => b.addEventListener('click', () => { state.mode = b.dataset.mode; syncSegs(); save(); refreshAll(); }));
-    elScore.addEventListener('input', () => { state.score = elScore.value; state.example = false; soon(); });
-    elRank.addEventListener('input', () => { state.rank = elRank.value; state.example = false; soon(); });
+    elScore.addEventListener('input', () => { state.score = elScore.value; state.example = false; resetQuick(); soon(); });
+    elRank.addEventListener('input', () => { state.rank = elRank.value; state.example = false; resetQuick(); soon(); });
     elGroup.addEventListener('change', () => { state.group = elGroup.value; state.K = null; state.sel = null; fillGroups(); save(); refreshAll(); });
-    $('#group-chips').addEventListener('click', (e) => {
+    $('#verdict').addEventListener('click', (e) => {
       const b = e.target.closest('[data-group]'); if (!b) return;
       state.group = b.dataset.group; state.K = null; state.sel = null; fillGroups(); save(); refreshAll();
     });
@@ -1273,36 +1544,39 @@
     });
     $('#k-presets').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; state.K = b.dataset.k; save(); refreshAll(); });
     $('#in-c0').addEventListener('input', (e) => { state.C0 = e.target.value; soon(); });
-    $('#go').addEventListener('click', () => goTo($('#verdict')));
     $('#more-cards').addEventListener('click', () => { state.showAll = !state.showAll; renderGecmis(); });
     $('#in-place').addEventListener('change', (e) => { state.place = e.target.value; state.page = 0; save(); renderList(); });
     $('#in-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 0; soon(renderList, 180); });
     $('#in-sort').addEventListener('change', (e) => { state.sort = e.target.value; state.page = 0; save(); renderList(); });
     $('#in-scope').addEventListener('change', (e) => { state.scope = e.target.value; state.page = 0; save(); renderList(); });
-    $('#in-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; soon(); });
-    $('#in-nplace').addEventListener('change', (e) => { state.nplace = e.target.value; state.bpage = 0; save(); renderHasChips(); renderBolum(); });
-    $('#in-nkod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; soon(); });
-    $('#qs-score').addEventListener('input', (e) => { state.score = e.target.value; state.example = false; qsLimit = 24; soon(); });
-    $('#qs-rank').addEventListener('input', (e) => { state.rank = e.target.value; state.example = false; qsLimit = 24; soon(); });
-    $('#qs-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; qsLimit = 24; soon(refreshAll, 220); });
-    $('#qs-kod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; qsLimit = 24; soon(refreshAll, 220); });
-    $('#qs-level').addEventListener('change', (e) => { state.level = e.target.value; state.sel = null; state.place = null; state.K = null; state.bpage = 0; qsLimit = 24; syncSegs(); fillGroups(); save(); refreshAll(); });
-    $('#qs-year').addEventListener('click', (e) => { const b = e.target.closest('[data-y]'); if (!b) return; state.qyear = b.dataset.y; qsLimit = 24; save(); if (!renderQuick()) goTo($('#qs-info'), true); });
-    $('#qs-more').addEventListener('click', () => { qsLimit += 48; renderQuick(); });
-    $('#quick-form').addEventListener('submit', (e) => {
+    $('#in-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; resetQuick(); soon(refreshAll, 220); });
+    $('#in-nkod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; resetQuick(); soon(refreshAll, 220); });
+    $('#in-nplace').addEventListener('change', (e) => { state.nplace = e.target.value; state.bpage = 0; save(); renderBolum(); });
+    $('#qs-year').addEventListener('click', (e) => { const b = e.target.closest('[data-y]'); if (!b) return; state.qyear = b.dataset.y; resetQuick(); save(); renderQuick(); });
+    $('#qs-more').addEventListener('click', () => { qsLimit = (qsLimit || qsFirst()) + 24; renderQuick(); });
+    $('#search-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      clearTimeout(timer); qsLimit = 24; save(); refreshAll();
-      const need = renderQuick();
-      if (need) { $(need).focus(); return; }
+      clearTimeout(timer); resetQuick(); save(); refreshAll();
+      const need = quickNeed();
+      if (need) { focusField(need); return; }
       if (e.target.contains(document.activeElement)) document.activeElement.blur();
-      goTo($('#qs-info'));
+      goTo($('#quick'));
+    });
+    $('#prob-more').addEventListener('toggle', renderProbChart);
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      if (b && ACTIONS[b.dataset.act]) { e.preventDefault(); ACTIONS[b.dataset.act](b); }
+    });
+    window.addEventListener('hashchange', () => {
+      const h = location.hash.slice(1), t = TAB_ALIAS[h] || h;
+      if (TABS.includes(t)) { selectTab(t, false); goTo($('#' + t)); }
     });
     $('#in-nstrict').addEventListener('change', (e) => { state.nstrict = e.target.checked; state.bpage = 0; save(); renderBolum(); });
     $('#nhas-chips').addEventListener('click', (e) => {
       const b = e.target.closest('[data-has]'); if (!b) return;
       const c = +b.dataset.has, set = new Set((state.nhas || []).map(Number));
       if (set.has(c)) set.delete(c); else set.add(c);
-      state.nhas = [...set]; state.bpage = 0; save(); renderHasChips(); renderBolum();
+      state.nhas = [...set]; state.bpage = 0; resetQuick(); save(); refreshAll();
     });
     $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[role="tab"]'); if (b) { selectTab(b.id.slice(2)); goTo($('#' + state.tab), true); } });
     $('#tabs').addEventListener('keydown', (e) => {
@@ -1311,7 +1585,6 @@
       const id = TABS[(i + TABS.length) % TABS.length];
       selectTab(id); $('#t-' + id).focus();
     });
-    $('#aday-form').addEventListener('submit', (e) => e.preventDefault());
     $('#cal-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const c = { level: $('#cal-level').value, year: CUR, score: parseScore($('#cal-score').value), rank: parseIntTR($('#cal-rank').value), n: parseIntTR($('#cal-n').value) };
@@ -1333,9 +1606,9 @@
     });
     document.addEventListener('click', (e) => { $$('details.tip[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; }); });
     let rz = null;
-    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (state.tab === 'gecmis') renderGecmis(); if (state.tab === 'ihtimal') renderIhtimal(); }, 200); });
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (state.tab === 'gecmis') renderGecmis(); renderProbChart(); }, 200); });
     const hash = (location.hash || '').replace('#', '');
-    selectTab(TABS.includes(hash) ? hash : state.tab, false);
+    selectTab(TABS.includes(TAB_ALIAS[hash] || hash) ? hash : state.tab, false);
     refreshAll();
   }
   init();
