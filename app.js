@@ -78,6 +78,13 @@
     return x >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
   }
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  // Düğmeye basınca ilgili bölümü gösterir; soft: bölüm zaten ekranın üst kısmındaysa kaydırmaz.
+  function goTo(el, soft = false) {
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    if (soft && top >= 0 && top < innerHeight * 0.4) return;
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
 
   // ---------------------------------------------------------------- depolama
   const store = {
@@ -581,7 +588,7 @@
     more.textContent = state.showAll ? 'Daha az göster' : `Tüm alımları göster (${rows.length})`;
     $$('#pl-cards [data-open]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openList(b.dataset.open); }));
     $$('#pl-cards .pl-card').forEach((c) => {
-      const pick = () => { state.sel = c.dataset.sel; save(); renderGecmis(); $('#range-chart').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' }); };
+      const pick = () => { state.sel = c.dataset.sel; save(); renderGecmis(); goTo($('#range-chart'), true); };
       c.addEventListener('click', pick);
       c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     });
@@ -845,10 +852,10 @@
     const u = user();
     const typed = (String(state.nkod || '').match(/\d{4}/g) || []).map(Number);
     const q = up(state.bolum).trim();
-    const stop = (msg) => { info.textContent = msg; box.innerHTML = ''; more.hidden = true; };
+    const stop = (msg, need = null) => { info.textContent = msg; box.innerHTML = ''; more.hidden = true; return need; };
     if (!NIT_PIDS.length) return stop('Nitelik verisi yüklenemedi.');
-    if (u.score == null) return stop('Puanını yaz; ardından bölümünü ya da nitelik kodunu gir.');
-    if (q.length < 3 && !typed.some(isEduCode)) return stop('Bölümünü (en az 3 harf) ya da mezuniyet nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Sertifika, ehliyet gibi kodları da ekleyebilirsin (ör. 6225, 6506).');
+    if (u.score == null) return stop('Puanını yaz; ardından bölümünü ya da nitelik kodunu gir.', '#qs-score');
+    if (q.length < 3 && !typed.some(isEduCode)) return stop('Bölümünü (en az 3 harf) ya da mezuniyet nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Sertifika, ehliyet gibi kodları da ekleyebilirsin (ör. 6225, 6506).', '#qs-bolum');
     const pids = NIT_PIDS.filter((pid) => state.qyear === 'all' || (state.qyear === '2026' ? pid.startsWith('2026') : !pid.startsWith('2026')));
     const { items } = findKadros(pids, q, typed, u);
     const ok = items.filter((it) => !it.missing.length && it.reach === 'ok');
@@ -924,7 +931,7 @@
   function openList(key) {
     state.place = key; state.page = 0;
     selectTab('liste');
-    $('#tabs').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    goTo($('#liste'));
   }
   function renderList() {
     fillPlaceSelect();
@@ -1266,7 +1273,7 @@
     });
     $('#k-presets').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; state.K = b.dataset.k; save(); refreshAll(); });
     $('#in-c0').addEventListener('input', (e) => { state.C0 = e.target.value; soon(); });
-    $('#go').addEventListener('click', () => $('#verdict').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' }));
+    $('#go').addEventListener('click', () => goTo($('#verdict')));
     $('#more-cards').addEventListener('click', () => { state.showAll = !state.showAll; renderGecmis(); });
     $('#in-place').addEventListener('change', (e) => { state.place = e.target.value; state.page = 0; save(); renderList(); });
     $('#in-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 0; soon(renderList, 180); });
@@ -1280,9 +1287,16 @@
     $('#qs-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; qsLimit = 24; soon(refreshAll, 220); });
     $('#qs-kod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; qsLimit = 24; soon(refreshAll, 220); });
     $('#qs-level').addEventListener('change', (e) => { state.level = e.target.value; state.sel = null; state.place = null; state.K = null; state.bpage = 0; qsLimit = 24; syncSegs(); fillGroups(); save(); refreshAll(); });
-    $('#qs-year').addEventListener('click', (e) => { const b = e.target.closest('[data-y]'); if (!b) return; state.qyear = b.dataset.y; qsLimit = 24; save(); renderQuick(); });
+    $('#qs-year').addEventListener('click', (e) => { const b = e.target.closest('[data-y]'); if (!b) return; state.qyear = b.dataset.y; qsLimit = 24; save(); if (!renderQuick()) goTo($('#qs-info'), true); });
     $('#qs-more').addEventListener('click', () => { qsLimit += 48; renderQuick(); });
-    $('#quick-form').addEventListener('submit', (e) => e.preventDefault());
+    $('#quick-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      clearTimeout(timer); qsLimit = 24; save(); refreshAll();
+      const need = renderQuick();
+      if (need) { $(need).focus(); return; }
+      if (e.target.contains(document.activeElement)) document.activeElement.blur();
+      goTo($('#qs-info'));
+    });
     $('#in-nstrict').addEventListener('change', (e) => { state.nstrict = e.target.checked; state.bpage = 0; save(); renderBolum(); });
     $('#nhas-chips').addEventListener('click', (e) => {
       const b = e.target.closest('[data-has]'); if (!b) return;
@@ -1290,7 +1304,7 @@
       if (set.has(c)) set.delete(c); else set.add(c);
       state.nhas = [...set]; state.bpage = 0; save(); renderHasChips(); renderBolum();
     });
-    $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[role="tab"]'); if (b) selectTab(b.id.slice(2)); });
+    $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[role="tab"]'); if (b) { selectTab(b.id.slice(2)); goTo($('#' + state.tab), true); } });
     $('#tabs').addEventListener('keydown', (e) => {
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
       const i = TABS.indexOf(state.tab) + (e.key === 'ArrowRight' ? 1 : -1);

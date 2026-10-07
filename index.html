@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
 <style>
+[hidden] { display: none !important; }
 /* Yerleşim: üç adımlı akış — solda "Bilgilerin" kartı, sağda büyük "Sonucun" kartı (gösterge + kadro sayısı kaydırıcısı),
    altta sekmeli "Ayrıntılı inceleme". Senin konumun her yerde fosforlu sarıyla işaretlenir. */
 :root {
@@ -317,6 +318,11 @@ tr.sel td { background: var(--mark-soft); }
 .qs-item .t { font-family: var(--f-display); font-weight: 700; font-size: 1.02rem; }
 .qs-item .meta { font-size: 0.82rem; color: var(--muted); }
 .qs-item .tb { display: flex; justify-content: space-between; gap: 8px; font-size: 0.86rem; }
+.qs-go { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.qs-go .btn { min-width: min(100%, 17rem); }
+@media (max-width: 520px) { .qs-go .btn { width: 100%; } }
+#qs-info, #verdict { scroll-margin-top: 12px; }
+.panel, #range-chart { scroll-margin-top: 76px; }
 .check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--brand); }
 .req-chip.miss { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad); text-decoration: line-through; }
@@ -373,6 +379,7 @@ footer { margin-top: 44px; font-size: 0.84rem; color: var(--muted); border-top: 
           <button type="button" data-y="past" aria-pressed="false">Geçmiş<small>2025 alımları</small></button>
           <button type="button" data-y="all" aria-pressed="false">Tümü<small>2025–2026</small></button>
         </div></div>
+      <div class="qs-go"><button class="btn btn-primary" type="submit" id="qs-go">Kadrolarımı göster</button></div>
     </form>
     <p class="hint" id="qs-info"></p>
     <div class="qs-list" id="qs-results"></div>
