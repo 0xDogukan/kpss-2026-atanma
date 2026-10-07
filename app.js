@@ -3,17 +3,23 @@
          window.KPSS_HEMSIRE (uzun dönem hemşire tablosu), window.KPSS_NITELIK (kılavuz nitelik kodları). */
 'use strict';
 (function () {
-  const D = window.KPSS_DATA;
-  const RK = window.KPSS_RANK;
-  const HT = window.KPSS_HEMSIRE || null;
-  const NIT = window.KPSS_NITELIK || {};
+  // Aynı uygulama iki sayfada çalışır: index.html (KPSS) ve ekpss.html (window.SITE.exam = 'ekpss'). EKPSS'de puan → sıra
+  // modeli yoktur: karşılaştırma puanla yapılır, atanma ihtimali yerine son yerleştirmelerde puanın yettiği kadro oranı gösterilir.
+  const EK = (window.SITE || {}).exam === 'ekpss';
+  const D = EK ? window.EKPSS_DATA : window.KPSS_DATA;
+  const RK = EK ? { models: {} } : window.KPSS_RANK;
+  const HT = EK ? null : window.KPSS_HEMSIRE || null;
+  const NIT = (EK ? window.EKPSS_NITELIK : window.KPSS_NITELIK) || {};
+  const PFX = EK ? 'EKPSS-' : 'KPSS-';
+  const STORE_KEY = EK ? 'ekpss-state' : 'kpss2026-state';
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+  const on = (sel, ev, fn) => { const el = $(sel); if (el) el.addEventListener(ev, fn); }; // öğe o sayfada yoksa geç
   const LEVELS = ['lisans', 'onlisans', 'ortaogretim'];
   const LV = {
-    lisans: { ad: 'Lisans', puan: 'KPSSP3', edu: '4', generic: 4001, kodBas: '3' },
-    onlisans: { ad: 'Ön Lisans', puan: 'KPSSP93', edu: '3', generic: 3001, kodBas: '2' },
-    ortaogretim: { ad: 'Ortaöğretim', puan: 'KPSSP94', edu: '2', generic: 2001, kodBas: '1' },
+    lisans: { ad: 'Lisans', puan: EK ? 'EKPSS Lisans' : 'KPSSP3', edu: '4', generic: 4001, kodBas: '3' },
+    onlisans: { ad: 'Ön Lisans', puan: EK ? 'EKPSS Ön Lisans' : 'KPSSP93', edu: '3', generic: 3001, kodBas: '2' },
+    ortaogretim: { ad: 'Ortaöğretim', puan: EK ? 'EKPSS Ortaöğretim' : 'KPSSP94', edu: '2', generic: 2001, kodBas: '1' },
   };
   const CUR = 2026;
   const COL = { p: 0, level: 1, kod: 2, kurum: 3, il: 4, birim: 5, unvan: 6, grup: 7, kont: 8, yer: 9, min: 10, max: 11 };
@@ -49,13 +55,13 @@
   const SMALL = new Set(['VE', 'İLE', 'VEYA', 'DA', 'DE']);
   function trTitle(s) {
     if (!s) return '';
-    return s.split(' ').map((w, i) => {
-      if (i > 0 && SMALL.has(w)) return low(w);
+    const cap = (w) => {
       const lw = low(w);
       const j = lw.search(/[a-zçğıöşüâîû]/i);
       if (j < 0) return w;
       return lw.slice(0, j) + lw.charAt(j).toLocaleUpperCase('tr-TR') + lw.slice(j + 1);
-    }).join(' ');
+    };
+    return s.split(' ').map((w, i) => (i > 0 && SMALL.has(w) ? low(w) : w.split('-').map(cap).join('-'))).join(' ');
   }
   function parseScore(str) {
     if (str == null) return null;
@@ -188,15 +194,16 @@
   }
 
   // ---------------------------------------------------------------- durum
-  const DEFAULTS = { level: 'lisans', score: '80,50000', rank: '', group: 'HEMŞİRE', il: '', mode: 'rank', kind: '', K: null, C0: '0',
+  const DEFAULTS = { level: 'lisans', score: EK ? '82,00000' : '80,50000', rank: '', group: EK ? 'MEMUR' : 'HEMŞİRE', il: '', mode: EK ? 'raw' : 'rank', kind: '', K: null, C0: '0',
     tab: 'gecmis', sel: null, place: null, q: '', sort: 'taban-asc', scope: 'group', page: 0, example: true, showAll: false,
     bolum: '', nkod: '', nhas: [], nstrict: false, nplace: 'all', bpage: 0, qyear: 'all' };
-  const state = Object.assign({}, DEFAULTS, store.get('kpss2026-state', {}));
+  const state = Object.assign({}, DEFAULTS, store.get(STORE_KEY, {}));
+  if (EK) state.mode = 'raw';
   function save() {
     const keep = ['level', 'score', 'rank', 'group', 'il', 'mode', 'kind', 'K', 'C0', 'tab', 'sel', 'place', 'sort', 'scope', 'example', 'bolum', 'nkod', 'nhas', 'nstrict', 'nplace', 'qyear'];
     const o = {};
     for (const k of keep) o[k] = state[k];
-    store.set('kpss2026-state', o);
+    store.set(STORE_KEY, o);
   }
   function user() {
     const level = state.level;
@@ -395,6 +402,7 @@
     elIl.value = state.il || '';
   }
   function fillKinds() {
+    if (!$('#in-kind')) return;
     const kinds = [...new Set(P.map((p) => p.kind))].sort((a, b) => a.localeCompare(b, 'tr'));
     $('#in-kind').innerHTML = '<option value="">Tüm alım türleri</option>' + kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
     $('#in-kind').value = state.kind || '';
@@ -414,19 +422,19 @@
     if (p >= 0.15) return { t: 'Düşük ihtimal', c: 'bad' };
     return { t: 'Çok düşük ihtimal', c: 'bad' };
   }
-  function gaugeSVG(p, cls) {
+  function gaugeSVG(p, cls, label = 'atanma ihtimali', fmt = fProb) {
     const cx = 110, cy = 110, r = 86, sw = 18;
     const pt = (t) => [cx + r * Math.cos(Math.PI * (1 - t)), cy - r * Math.sin(Math.PI * (1 - t))];
     const [x0, y0] = pt(0), [x1, y1] = pt(1);
-    let s = `<svg viewBox="0 0 220 132" role="img" aria-label="Atanma ihtimali ${p == null ? 'hesaplanamadı' : esc(fProb(p))}">`;
+    let s = `<svg viewBox="0 0 220 132" role="img" aria-label="${esc(label)} ${p == null ? 'hesaplanamadı' : esc(fmt(p))}">`;
     s += `<path d="M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}" fill="none" stroke="var(--line)" stroke-width="${sw}" stroke-linecap="round"/>`;
     if (p != null && p > 0.004) {
       const t = Math.max(0.01, Math.min(1, p));
       const [xe, ye] = pt(t);
       s += `<path d="M${x0} ${y0} A${r} ${r} 0 0 1 ${xe.toFixed(2)} ${ye.toFixed(2)}" fill="none" stroke="var(--${cls})" stroke-width="${sw}" stroke-linecap="round"/>`;
     }
-    s += `<text x="${cx}" y="${cy - 14}" text-anchor="middle" font-size="40" font-weight="800" style="fill:var(--ink)">${p == null ? '–' : esc(fProb(p))}</text>`;
-    s += `<text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="13" font-weight="600">atanma ihtimali</text>`;
+    s += `<text x="${cx}" y="${cy - 14}" text-anchor="middle" font-size="40" font-weight="800" style="fill:var(--ink)">${p == null ? '–' : esc(fmt(p))}</text>`;
+    s += `<text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="13" font-weight="600">${esc(label)}</text>`;
     s += `<text x="${x0}" y="${cy + 18}" text-anchor="middle" font-size="11">%0</text><text x="${x1}" y="${cy + 18}" text-anchor="middle" font-size="11">%100</text>`;
     return s + '</svg>';
   }
@@ -446,6 +454,7 @@
     return { reach, filled };
   }
   function renderVerdict(u) {
+    if (EK) return renderEkVerdict(u);
     const fit = currentFit();
     const K = currentK(fit);
     const C0 = parseIntTR(state.C0) || 0;
@@ -514,17 +523,55 @@
       tiles.push('<div class="stat"><span class="k">2024\'teki karşılığın</span><span class="v">–</span><span class="d"></span></div>');
     }
     $('#stats').innerHTML = tiles.join('');
+    renderFormHints(u);
+    renderProbChart();
+  }
+  function renderFormHints(u) {
     const lvl = LV[state.level];
-    const bad = u.rawScore != null && (u.rawScore < 40 || u.rawScore > 100);
+    const bad = u.rawScore != null && (u.rawScore < (EK ? 0 : 40) || u.rawScore > 100);
     const sh = $('#score-hint');
     sh.className = 'hint' + (bad || (u.rawScore == null && state.score) ? ' err' : state.example ? ' ex' : '');
     sh.textContent = u.rawScore == null && state.score ? 'Puan anlaşılamadı; örnek: 81,73954'
-      : bad ? 'KPSS puanları 40 ile 100 arasında olur.'
+      : bad ? (EK ? 'EKPSS puanı 100\'den büyük olamaz.' : 'KPSS puanları 40 ile 100 arasında olur.')
       : state.example ? 'Şu an örnek puan gösteriliyor; kendi puanını yaz.' : `Sonuç belgendeki ${lvl.puan} puanı`;
-    $('#rank-hint').textContent = state.level === 'lisans'
+    const rh = $('#rank-hint');
+    if (!rh) return;
+    const m26 = model(state.level, CUR);
+    rh.textContent = state.level === 'lisans'
       ? (parseIntTR(state.rank) ? `2026 Lisans'ta ${fInt(m26 ? m26.n : null)} aday var.` : 'Boş bırakırsan puanından tahmin ederiz.')
       : `${lvl.ad} 2026 sonuçları ${state.level === 'onlisans' ? '30 Ekim' : '19 Kasım'}'de açıklanacak; şimdilik tahmin 2024 verisine dayanıyor.`;
-    renderProbChart();
+  }
+  // EKPSS: sıralama modeli olmadığı için ihtimal yerine puanının son yerleştirmelerde bu kadronun kaç kadrosuna yettiği
+  function renderEkVerdict(u) {
+    $('#example-flag').hidden = !state.example;
+    renderFormHints(u);
+    const noScore = u.score == null;
+    $('#v-body').hidden = noScore;
+    $('#v-empty').innerHTML = noScore ? emptyHTML({ icon: 'edit', compact: true, title: 'Puanını yaz', actions: [['Puanını yaz', 'focus-score', true]],
+      text: 'Geçmiş tabanlarla karşılaştırmak için yukarıdaki <b>Bilgilerin</b> bölümüne EKPSS puanını yaz.' }) : '';
+    if (noScore) return;
+    const gname = groupLabel(state.group);
+    const list = visiblePlacements(u);
+    const pill = $('#v-pill');
+    if (!list.length) {
+      $('#gauge').innerHTML = gaugeSVG(null, 'none', 'kadroya yeterdi', fPct);
+      pill.className = 'pill pill-lg none';
+      pill.textContent = 'Veri yok';
+      $('#v-sentence').innerHTML = `<b>${esc(gname)}</b> için ${state.il ? esc(trTitle(state.il)) + ' ilinde ' : ''}geçmiş EKPSS yerleştirmesi bulunamadı.`;
+      $('#v-sub').innerHTML = '<button type="button" class="btn-link" data-act="focus-group">Başka bir kadro seç</button>';
+      $('#stats').innerHTML = '';
+      return;
+    }
+    const share = (st) => (st.filled ? st.reach / st.filled : 0);
+    const last = list[list.length - 1];
+    const [txt, cls] = { ok: ['Puanın yeterdi', 'ok'], warn: ['Sınırda', 'warn'], bad: ['Puanın yetmezdi', 'bad'], none: ['Veri yok', 'none'] }[statusOf(last)];
+    $('#gauge').innerHTML = gaugeSVG(share(last), cls, 'kadroya yeterdi', fPct);
+    pill.className = 'pill pill-lg ' + cls;
+    pill.textContent = txt;
+    $('#v-sentence').innerHTML = `${esc(PFX + last.p.id)} yerleştirmesinde ${state.group ? `<b>${esc(gname)}</b> kadrolarının` : 'tüm kadroların'} <b>${fInt(last.reach)}</b> / ${fInt(last.filled)} tanesine (${fPct(share(last))}) puanın yeterdi.`;
+    $('#v-sub').textContent = `En düşük taban ${fSc(last.min, 2)}, ortadaki taban ${fSc(last.med, 2)}. Bu yerleştirme ${last.lv.scoreYear} EKPSS puanlarıyla yapıldı; sınavlar yıldan yıla farklı olduğu için karşılaştırma yaklaşıktır.`;
+    $('#stats').innerHTML = list.slice(-3).reverse().map((st) => `<div class="stat"><span class="k">${esc(PFX + st.p.id)} · ${st.lv.scoreYear} puanı</span>
+      <span class="v">${fPct(share(st))}</span><span class="d">${fInt(st.reach)} / ${fInt(st.filled)} kadroya yeterdi · en düşük taban ${fSc(st.min, 2)}</span></div>`).join('');
   }
 
   // ---------------------------------------------------------------- geçmiş alımlar
@@ -593,7 +640,7 @@
       s += `<line x1="${cx}" x2="${cx}" y1="${y(d.max)}" y2="${y(d.min)}" stroke="${col}" stroke-opacity="0.35" stroke-width="9" stroke-linecap="round"/>`;
       s += `<circle cx="${cx}" cy="${y(d.min)}" r="3.2" fill="${col}"/>`;
       s += `<circle cx="${cx}" cy="${y(d.med)}" r="5.5" fill="var(--surface)" stroke="${col}" stroke-width="3"/>`;
-      s += `<title>KPSS-${esc(d.st.p.id)} · ${esc(d.st.p.kind)} · ${fDate(d.st.p.date)}\n${fInt(d.st.filled)} kadro · en düşük taban ${fSc(d.st.min)}${state.mode === 'rank' && d.st.lv.scoreYear !== CUR ? ' (2026 karşılığı ' + fSc(d.min, 2) + ')' : ''}\nortadaki taban ${fSc(d.st.med)}</title>`;
+      s += `<title>${PFX}${esc(d.st.p.id)} · ${esc(d.st.p.kind)} · ${fDate(d.st.p.date)}\n${fInt(d.st.filled)} kadro · en düşük taban ${fSc(d.st.min)}${state.mode === 'rank' && d.st.lv.scoreYear !== CUR ? ' (2026 karşılığı ' + fSc(d.min, 2) + ')' : ''}\nortadaki taban ${fSc(d.st.med)}</title>`;
       s += '</g>';
       s += `<text x="${cx}" y="${H - mb + 13}" font-size="10.5" text-anchor="end" transform="rotate(-50 ${cx} ${H - mb + 13})">${esc(d.st.p.id)}</text>`;
     });
@@ -617,7 +664,7 @@
     const rmin = m ? rankOn(m, st.min) : null;
     const share = st.filled ? st.reach / st.filled : 0;
     const stt = statusOf(st);
-    el.innerHTML = `<div class="detail-head"><div><b>KPSS-${esc(st.p.id)}</b> · ${esc(st.p.kind)} · ${fDate(st.p.date)} <span class="badge">${lv.scoreYear} puanı</span></div>
+    el.innerHTML = `<div class="detail-head"><div><b>${PFX}${esc(st.p.id)}</b> · ${esc(st.p.kind)} · ${fDate(st.p.date)} <span class="badge">${lv.scoreYear} puanı</span></div>
       <button class="btn-link" type="button" id="open-list">Kadroları gör →</button></div>
       <p>${esc(groupLabel(state.group))}${state.il ? ' · ' + esc(trTitle(state.il)) : ''}: <b>${fInt(st.filled)}</b> kadro. En düşük taban <b class="tnum">${fSc(st.min, 3)}</b>${rmin ? ' (yaklaşık ' + fInt(rmin) + '. sıra' + (conv ? ', 2026 karşılığı ' + fSc(to2026(state.level, lv.scoreYear, st.min), 2) : '') + ')' : ''}, ortadaki taban <b class="tnum">${fSc(st.med, 3)}</b>.</p>
       <p>${st.thr != null ? `<span class="pill ${stt}">${STATUS_TXT[stt]}</span> ${conv ? lv.scoreYear + ' ölçeğindeki karşılığın <span class="hl tnum">' + fSc(st.thr, 2) + '</span>' : 'Puanın <span class="hl tnum">' + fSc(st.thr, 2) + '</span>'} ile bu kadroların <b>${fInt(st.reach)}</b> tanesine (${fPct(share)}) yerleşebilirdin.` : 'Karşılaştırma için puanını yaz.'}</p>`;
@@ -633,7 +680,7 @@
       const key = placeKey(st.p);
       const conv = state.mode === 'rank' && st.lv.scoreYear !== CUR;
       return `<article class="card pl-card${state.sel === key ? ' sel' : ''}" data-sel="${esc(key)}" tabindex="0">
-        <div class="pl-top"><div><strong>KPSS-${esc(st.p.id)}</strong><span class="kind">${esc(st.p.kind)} · ${fDate(st.p.date)}</span></div><span class="badge">${st.lv.scoreYear} puanı</span></div>
+        <div class="pl-top"><div><strong>${PFX}${esc(st.p.id)}</strong><span class="kind">${esc(st.p.kind)} · ${fDate(st.p.date)}</span></div><span class="badge">${st.lv.scoreYear} puanı</span></div>
         <dl class="pl-nums">
           <div><dt>Kadro</dt><dd>${fInt(st.filled)}${st.bos ? '<small>+' + fInt(st.bos) + ' boş kaldı</small>' : ''}</dd></div>
           <div><dt>En düşük taban</dt><dd>${fSc(st.min, 2)}${conv ? '<small>2026: ' + fSc(to2026(state.level, st.lv.scoreYear, st.min), 2) + '</small>' : ''}</dd></div>
@@ -656,6 +703,7 @@
   }
   function renderHemsire() {
     const card = $('#hemsire-card');
+    if (!card) return;
     const show = HT && state.level === 'lisans' && state.group === 'HEMŞİRE';
     card.hidden = !show;
     if (!show) return;
@@ -681,7 +729,7 @@
 
   // ---------------------------------------------------------------- ihtimal grafiği (sonuç kartında, açılınca çizilir)
   function renderProbChart() {
-    if (!$('#prob-more').open) return;
+    if (EK || !$('#prob-more').open) return;
     const u = user();
     const fit = currentFit();
     const K = currentK(fit);
@@ -734,7 +782,7 @@
     $('#scen-note').textContent = `Geçmiş dönemlerde en düşük tabanın başarı sırası, o döneme kadar bu kadroya yerleşen kişi sayısının ortalama ${F1.format(Math.exp(fit.max.mu))} katı oldu (${fit.pts.length} alım). Nitelik şartları ve il tercihleri modele girmez; "tüm illeri tercih eden" en iyimser senaryodur.`;
     let h = '<thead><tr><th>Alım</th><th>Tür</th><th class="r">Puan yılı</th><th class="r">Bu alımda</th><th class="r">Dönem toplamı</th><th class="r">En düşük taban sırası</th><th class="r">Oran</th></tr></thead><tbody>';
     fit.pts.slice().sort((a, b) => (P[b.pi].date < P[a.pi].date ? -1 : 1)).forEach((p) => {
-      h += `<tr><td data-label="Alım" class="wide"><b>KPSS-${esc(P[p.pi].id)}</b> <span class="small muted">${fDate(P[p.pi].date)}</span></td><td data-label="Tür">${esc(P[p.pi].kind)}</td><td data-label="Puan yılı" class="r num">${p.y}</td><td data-label="Bu alımda" class="r num">${fInt(p.H)}</td><td data-label="Dönem toplamı" class="r num">${fInt(p.C)}</td><td data-label="En düşük taban sırası" class="r num">${fInt(p.rmax)}</td><td data-label="Oran" class="r num">${F1.format(p.kmax)}</td></tr>`;
+      h += `<tr><td data-label="Alım" class="wide"><b>${PFX}${esc(P[p.pi].id)}</b> <span class="small muted">${fDate(P[p.pi].date)}</span></td><td data-label="Tür">${esc(P[p.pi].kind)}</td><td data-label="Puan yılı" class="r num">${p.y}</td><td data-label="Bu alımda" class="r num">${fInt(p.H)}</td><td data-label="Dönem toplamı" class="r num">${fInt(p.C)}</td><td data-label="En düşük taban sırası" class="r num">${fInt(p.rmax)}</td><td data-label="Oran" class="r num">${F1.format(p.kmax)}</td></tr>`;
     });
     $('#tbl-scen').innerHTML = h + '</tbody>';
   }
@@ -809,7 +857,7 @@
   function renderNitelik() {
     const sel = $('#in-nplace');
     if (!state.nplace || (state.nplace !== 'all' && !NIT[state.nplace])) state.nplace = 'all';
-    sel.innerHTML = `<option value="all">Son ${NIT_PIDS.length} kılavuzun tümü</option>` + NIT_PIDS.map((pid) => { const p = P.find((x) => x.id === pid && !x.user); return `<option value="${esc(pid)}">KPSS-${esc(pid)}${p ? ' · ' + esc(p.kind) : ''}</option>`; }).join('');
+    sel.innerHTML = `<option value="all">Son ${NIT_PIDS.length} kılavuzun tümü</option>` + NIT_PIDS.map((pid) => { const p = P.find((x) => x.id === pid && !x.user); return `<option value="${esc(pid)}">${PFX}${esc(pid)}${p ? ' · ' + esc(p.kind) : ''}</option>`; }).join('');
     sel.value = state.nplace;
     $('#in-nstrict').checked = !!state.nstrict;
     renderBolum();
@@ -1008,7 +1056,7 @@
         const label = cat.k === 'ozel' ? 'Özel şart: ' + txt.replace(/^Bakınız:\s*Başvurma Özel Şartları\s*-\s*/i, '') : nitShort(txt);
         return `<span class="req-chip ${miss ? 'miss' : cat.cls}" title="${esc(c + ' · ' + txt + ' — Nasıl sağlanır: ' + cat.nasil)}">${esc(label)}</span>`;
       }).join('') + '</div>';
-      h += `<tr><td data-label="Kadro"><b>${esc(r ? trTitle(DICT.unvan[r[COL.unvan]]) : '–')}</b><div class="code">${esc(it.kod)} · KPSS-${esc(it.pid)}</div>${it.own ? '<span class="pill ok">Bölümüne özel</span>' : '<span class="pill none">Her bölüme açık</span>'}</td>
+      h += `<tr><td data-label="Kadro"><b>${esc(r ? trTitle(DICT.unvan[r[COL.unvan]]) : '–')}</b><div class="code">${esc(it.kod)} · ${PFX}${esc(it.pid)}</div>${it.own ? '<span class="pill ok">Bölümüne özel</span>' : '<span class="pill none">Her bölüme açık</span>'}</td>
         <td data-label="Kurum · il">${r ? esc(DICT.kurum[r[COL.kurum]]) + '<div class="small muted">' + esc(trTitle(DICT.il[r[COL.il]])) + '</div>' : '–'}</td>
         <td data-label="Kontenjan" class="r num">${r ? r[COL.kont] : '–'}</td><td data-label="Taban" class="r num">${r ? fSc(r[COL.min], 3) : '–'}</td>
         <td data-label="Şartlar" class="wide">${chips}</td>
@@ -1055,7 +1103,8 @@
     if (up(state.bolum).trim().length < 3 && !typedCodes().some(isEduCode)) return '#in-bolum';
     return null;
   }
-  const QS_WHERE = { all: '2025–2026 alımlarında', 2026: 'KPSS-2026/1 alımında', past: '2025 alımlarında' };
+  const QS_WHERE = EK ? { all: '2025–2026 EKPSS yerleştirmelerinde', 2026: '2026-EKPSS yerleştirmesinde', past: '2025-EKPSS yerleştirmesinde' }
+    : { all: '2025–2026 alımlarında', 2026: 'KPSS-2026/1 alımında', past: '2025 alımlarında' };
   function renderQuick() {
     $$('#qs-year button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.y === state.qyear)));
     const sum = $('#qs-summary'), box = $('#qs-results'), more = $('#qs-more');
@@ -1064,7 +1113,7 @@
     const need = quickNeed();
     if (need === '#in-score') {
       return show(emptyHTML({ icon: 'edit', title: 'Önce puanını yaz', actions: [['Puanını yaz', 'focus-score', true]],
-        text: 'Yukarıdaki <b>Bilgilerin</b> bölümüne 2026 KPSS puanını ve mezun olduğun bölümü yaz; girebileceğin kadrolar burada listelenir.' }));
+        text: `Yukarıdaki <b>Bilgilerin</b> bölümüne ${EK ? 'EKPSS' : '2026 KPSS'} puanını ve mezun olduğun bölümü yaz; girebileceğin kadrolar burada listelenir.` }));
     }
     if (need === '#in-bolum') {
       return show(emptyHTML({ icon: 'edit', title: 'Bölümünü yaz', actions: [['Bölümünü yaz', 'focus-bolum', true]],
@@ -1115,14 +1164,14 @@
       <div class="qs-top"><span class="t">${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</span>
         <span class="margin ${near ? 'warn' : 'ok'}" title="O dönemin karşılığındaki puanın ile taban arasındaki fark">${near ? fSc(-diff, 2) + ' puan eksik' : diff < 0.005 ? 'Tabana eşit' : '+' + fSc(diff, 2) + ' puan'}</span></div>
       <span class="kurum">${esc(DICT.kurum[r[COL.kurum]])}</span>
-      <div class="qs-meta"><b>${esc(trTitle(DICT.il[r[COL.il]]))}</b><span>${r[COL.kont]} kontenjan</span><span>KPSS-${esc(it.pid)}</span><span class="code">${esc(it.kod)}</span></div>
+      <div class="qs-meta"><b>${esc(trTitle(DICT.il[r[COL.il]]))}</b><span>${r[COL.kont]} kontenjan</span><span>${PFX}${esc(it.pid)}</span><span class="code">${esc(it.kod)}</span></div>
       <div class="qs-scores"><span>Taban <b class="tnum">${fSc(r[COL.min], 2)}</b></span><span>Senin karşılığın <b class="tnum hl">${fSc(it.thr, 2)}</b></span></div>
       ${reqChips(it.pid, it.kod, mine, q)}</article>`;
   }
   function syncInputs() {
     for (const [sel, k] of [['#in-score', 'score'], ['#in-rank', 'rank'], ['#in-bolum', 'bolum'], ['#in-nkod', 'nkod']]) {
       const el = $(sel);
-      if (document.activeElement !== el) el.value = state[k] || '';
+      if (el && document.activeElement !== el) el.value = state[k] || '';
     }
   }
   function renderGroupReqs() {
@@ -1149,7 +1198,7 @@
           cnt.set(key, (cnt.get(key) || 0) + 1);
         }
       }
-      if (local) used.push(`KPSS-${pid} (${fInt(local)})`);
+      if (local) used.push(`${PFX}${pid} (${fInt(local)})`);
     }
     $('#nit-group-sub').textContent = total ? `${used.join(', ')} kılavuzlarındaki ${fInt(total)} ${low(lv.ad)} kadrosuna göre. Yüzde, şartı isteyen kadroların oranı.` : '';
     if (!total) {
@@ -1170,7 +1219,7 @@
   function fillPlaceSelect() {
     const opts = P.filter((p) => p.levels[state.level]).sort((a, b) => (a.date < b.date ? 1 : -1));
     if (!opts.find((p) => placeKey(p) === state.place)) state.place = opts.length ? placeKey(opts[0]) : null;
-    $('#in-place').innerHTML = opts.map((p) => `<option value="${esc(placeKey(p))}">KPSS-${esc(p.id)} · ${esc(p.kind)} · ${fDate(p.date)}${NIT[p.id] && !p.user ? ' · nitelikler var' : ''}</option>`).join('');
+    $('#in-place').innerHTML = opts.map((p) => `<option value="${esc(placeKey(p))}">${PFX}${esc(p.id)} · ${esc(p.kind)} · ${fDate(p.date)}${NIT[p.id] && !p.user ? ' · nitelikler var' : ''}</option>`).join('');
     $('#in-place').value = state.place || '';
   }
   function openList(key) {
@@ -1207,7 +1256,7 @@
     const per = 60, pages = Math.max(1, Math.ceil(items.length / per));
     state.page = Math.min(state.page, pages - 1);
     const m = model(state.level, lv.scoreYear);
-    let h = `<thead><tr><th>Kadro</th><th>Kurum · il</th><th class="r">Kont.</th><th class="r">Taban</th><th class="r">Tavan</th><th class="r">Taban sırası</th>${hasNit ? '<th>Nitelik şartları</th>' : ''}<th>Senin için</th></tr></thead><tbody>`;
+    let h = `<thead><tr><th>Kadro</th><th>Kurum · il</th><th class="r">Kont.</th><th class="r">Taban</th><th class="r">Tavan</th>${EK ? '' : '<th class="r">Taban sırası</th>'}${hasNit ? '<th>Nitelik şartları</th>' : ''}<th>Senin için</th></tr></thead><tbody>`;
     for (const r of items.slice(state.page * per, state.page * per + per)) {
       let st = 'none';
       if (r[COL.min] != null && thr != null) st = thr >= r[COL.min] ? 'ok' : thr >= r[COL.min] - NEAR ? 'warn' : 'bad';
@@ -1215,7 +1264,7 @@
       h += `<tr><td data-label="Kadro"><b>${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</b><div class="code">${esc(r[COL.kod])}</div></td>
         <td data-label="Kurum · il">${esc(DICT.kurum[r[COL.kurum]])}<div class="small muted">${esc(trTitle(DICT.il[r[COL.il]]))}</div></td>
         <td data-label="Kontenjan" class="r num">${r[COL.kont]}</td><td data-label="Taban" class="r num">${fSc(r[COL.min], 3)}</td><td data-label="Tavan" class="r num">${fSc(r[COL.max], 3)}</td>
-        <td data-label="Taban sırası" class="r num">${r[COL.min] != null && m ? fInt(rankOn(m, r[COL.min])) : '–'}</td>
+        ${EK ? '' : `<td data-label="Taban sırası" class="r num">${r[COL.min] != null && m ? fInt(rankOn(m, r[COL.min])) : '–'}</td>`}
         ${hasNit ? `<td data-label="Nitelik şartları" class="wide">${reqChips(p.id, r[COL.kod])}</td>` : ''}
         <td data-label="Senin için"><span class="pill ${r[COL.min] == null ? 'none' : st}">${lbl}</span></td></tr>`;
     }
@@ -1441,6 +1490,7 @@
 
   // ---------------------------------------------------------------- yöntem
   function renderMethod() {
+    if (EK) return renderEkMethod();
     const first = P[0], last = P[BASE_P - 1];
     const m26 = RK.models['lisans-2026'];
     const totalK = R.slice(0, BASE_ROWS).reduce((s, r) => s + r[COL.kont], 0);
@@ -1449,8 +1499,8 @@
     $('#foot-data').textContent = `Veri seti ${D.generated} tarihinde ÖSYM'nin "En Küçük ve En Büyük Puanlar", "Sayısal Bilgiler" ve tercih kılavuzu belgelerinden üretildi (${fInt(totalK)} kadro).`;
     $('#method').innerHTML = `
       <h3>Veri</h3>
-      <p>ÖSYM'nin yayımladığı ${BASE_P} yerleştirmenin (KPSS-${esc(first.id)}, ${fDate(first.date)} → KPSS-${esc(last.id)}, ${fDate(last.date)}) "En Küçük ve En Büyük Puanlar" belgeleri satır satır okundu: kadro kodu, kurum, il, kadro unvanı, kontenjan, yerleşen sayısı, taban ve tavan puan. Toplam ${fInt(BASE_ROWS)} satır, ${fInt(totalK)} kadro. Her yerleştirmede kontenjan ve yerleşen toplamları ÖSYM'nin özet belgeleriyle birebir aynı.</p>
-      <p>Nitelik şartları ${NIT_PIDS.map((p) => 'KPSS-' + esc(p)).join(', ')} tercih kılavuzlarındaki kadro tablolarından ve nitelik kodu listelerinden alındı (${fInt(nitN)} kadro).</p>
+      <p>ÖSYM'nin yayımladığı ${BASE_P} yerleştirmenin (${PFX}${esc(first.id)}, ${fDate(first.date)} → ${PFX}${esc(last.id)}, ${fDate(last.date)}) "En Küçük ve En Büyük Puanlar" belgeleri satır satır okundu: kadro kodu, kurum, il, kadro unvanı, kontenjan, yerleşen sayısı, taban ve tavan puan. Toplam ${fInt(BASE_ROWS)} satır, ${fInt(totalK)} kadro. Her yerleştirmede kontenjan ve yerleşen toplamları ÖSYM'nin özet belgeleriyle birebir aynı.</p>
+      <p>Nitelik şartları ${NIT_PIDS.map((p) => PFX + esc(p)).join(', ')} tercih kılavuzlarındaki kadro tablolarından ve nitelik kodu listelerinden alındı (${fInt(nitN)} kadro).</p>
       <h3>Puandan başarı sırasına</h3>
       <p>KPSS puanı, ağırlıklı standart puanın doğrusal bir dönüşümüdür: <code>KPSS = 70 + 30·[2(ASP−X) − S] / [2(B−X) − S]</code> (2026 Lisans Kılavuzu). 13 adet 2026 sonuç belgesindeki doğru/yanlış sayıları bu formülle puanı 0,0002 farkla veriyor; belgelerdeki 39 puan–sıra noktası ${fInt(m26.n)} adaylık 2026 dağılımını oluşturuyor. Önceki yıllar aynı eğri şekliyle, o yılın ölçeği ve aday sayısıyla uyarlandı ve 2018–2020 ÖSYM puan dağılımlarıyla sınandı.</p>
       <h3>Yıllar arası karşılaştırma</h3>
@@ -1474,8 +1524,34 @@
       </ul>`;
   }
 
+  function renderEkMethod() {
+    const first = P[0], last = P[BASE_P - 1];
+    const totalK = R.slice(0, BASE_ROWS).reduce((s, r) => s + r[COL.kont], 0);
+    const nitN = NIT_PIDS.reduce((s, p) => s + Object.keys(NIT[p].kodlar).length, 0);
+    $('#trust-data').textContent = `${BASE_P} EKPSS yerleştirmesi · ${fInt(BASE_ROWS)} kadro satırı`;
+    $('#foot-data').textContent = `Veri seti ${D.generated} tarihinde ÖSYM'nin EKPSS "En Küçük ve En Büyük Puanlar", "Sayısal Bilgiler" ve tercih kılavuzu belgelerinden üretildi (${fInt(totalK)} kadro).`;
+    $('#method').innerHTML = `
+      <h3>Veri</h3>
+      <p>ÖSYM'nin yayımladığı ${BASE_P} EKPSS yerleştirmesinin (${esc(PFX + first.id)}, ${fDate(first.date)} → ${esc(PFX + last.id)}, ${fDate(last.date)}) "En Küçük ve En Büyük Puanlar" belgeleri satır satır okundu: kadro kodu, kurum, il, kadro unvanı, kontenjan, yerleşen sayısı, taban ve tavan puan. Toplam ${fInt(BASE_ROWS)} satır, ${fInt(totalK)} kadro. Her yerleştirme ve düzeyde kontenjan ve yerleşen toplamları ÖSYM'nin sayısal bilgiler belgeleriyle birebir aynı.</p>
+      <p>Nitelik şartları ${NIT_PIDS.map((p) => esc(PFX + p)).join(', ')} tercih kılavuzlarındaki kadro tablolarından ve nitelik kodu listelerinden alındı (${fInt(nitN)} kadro).</p>
+      <h3>Karşılaştırma</h3>
+      <p>ÖSYM, EKPSS için başarı sırası ya da puan dağılımı yayımlamadığından karşılaştırma doğrudan puanla yapılır: puanın, her yerleştirmenin kendi tabanlarıyla karşılaştırılır. EKPSS iki yılda bir yapılır; 2025 ve 2026 yerleştirmeleri 2024 puanlarıyla yapıldı, 2026 puanların bir sonraki yerleştirmede kullanılacak. Sınavın zorluğu yıldan yıla değiştiği için sonuçlar yaklaşıktır.</p>
+      <h3>Sınırlar</h3>
+      <ul>
+        <li>Kadro sayısına göre atanma ihtimali hesaplanmaz (KPSS sayfasındaki model başarı sırasına dayanır).</li>
+        <li>2018/2–2022 tablolarında il bilgisi yok; il seçiliyken bu yıllar sayılmaz.</li>
+        <li>Kura ile yapılan yerleştirmeler (ilköğretim mezunları) dahil değildir.</li>
+        <li>"Girebileceğin kadrolar" yalnız yazdığın bölüme, kodlara ve seçtiğin belgelere göre süzer; kuruma özel şartları kılavuzdan kontrol et.</li>
+      </ul>
+      <h3>Kaynaklar</h3>
+      <ul>
+        <li><a href="https://www.osym.gov.tr/SinavGrubu/Menu/356" target="_blank" rel="noopener">ÖSYM EKPSS Sayısal Bilgiler</a> (yerleştirme sonuçları, en küçük/en büyük puanlar)</li>
+        <li><a href="https://www.osym.gov.tr/SinavGrubu/Menu/353" target="_blank" rel="noopener">ÖSYM EKPSS Kılavuzlar</a> (tercih kılavuzları ve nitelik kodları)</li>
+      </ul>`;
+  }
+
   // ---------------------------------------------------------------- sekmeler ve olaylar
-  const TABS = ['gecmis', 'liste', 'nitelik', 'kadro2026', 'yontem'];
+  const TABS = EK ? ['gecmis', 'liste', 'nitelik', 'yontem'] : ['gecmis', 'liste', 'nitelik', 'kadro2026', 'yontem'];
   const TAB_ALIAS = { ihtimal: 'yontem', veri: 'yontem' }; // eski bağlantılar
   function selectTab(id, push = true) {
     id = TAB_ALIAS[id] || id;
@@ -1492,7 +1568,7 @@
     else if (t === 'liste') renderList();
     else if (t === 'nitelik') renderNitelik();
     else if (t === 'kadro2026') render2026();
-    else if (t === 'yontem') { renderModelTable(); renderVeri(); }
+    else if (t === 'yontem' && !EK) { renderModelTable(); renderVeri(); }
   }
   function refreshAll() { syncInputs(); renderHasChips(); renderBolumHint(); renderGroupChips(); renderVerdict(user()); renderQuick(); renderTab(); }
   // Boş durum ve kısayol düğmelerinin (data-act) işleri
@@ -1505,7 +1581,7 @@
     'qs-near': () => { qsNear = !qsNear; qsLimit = 0; renderQuick(); },
     'go-nitelik': () => { state.nstrict = false; state.bpage = 0; selectTab('nitelik'); goTo($('#nitelik')); },
     'clear-il': () => { state.il = ''; elIl.value = ''; save(); refreshAll(); },
-    'clear-kind': () => { state.kind = ''; $('#in-kind').value = ''; save(); refreshAll(); },
+    'clear-kind': () => { state.kind = ''; fillKinds(); save(); refreshAll(); },
     'list-clear-q': () => { state.q = ''; $('#in-q').value = ''; state.page = 0; save(); renderList(); },
     'list-all': () => { state.scope = 'all'; $('#in-scope').value = 'all'; state.page = 0; save(); renderList(); },
     'nit-loose': () => { state.nstrict = false; state.bpage = 0; save(); renderNitelik(); },
@@ -1515,13 +1591,13 @@
   function soon(fn = refreshAll, ms = 140) { clearTimeout(timer); timer = setTimeout(() => { save(); fn(); }, ms); }
 
   function init() {
-    loadUploads();
+    if (!EK) loadUploads(); // kullanıcı yüklemeleri KPSS verisine aittir
     fillKinds(); fillIl(); fillGroups(); syncSegs();
     elScore.value = state.score || '';
-    elRank.value = state.rank || '';
+    if (elRank) elRank.value = state.rank || '';
     $('#in-sort').value = state.sort;
     $('#in-scope').value = state.scope;
-    $('#in-c0').value = state.C0 || '0';
+    if ($('#in-c0')) $('#in-c0').value = state.C0 || '0';
     renderMethod();
     $$('#level-seg button').forEach((b) => b.addEventListener('click', () => {
       state.level = b.dataset.level; state.sel = null; state.place = null; state.K = null; state.bpage = 0; resetQuick();
@@ -1529,21 +1605,21 @@
     }));
     $$('#mode-seg button').forEach((b) => b.addEventListener('click', () => { state.mode = b.dataset.mode; syncSegs(); save(); refreshAll(); }));
     elScore.addEventListener('input', () => { state.score = elScore.value; state.example = false; resetQuick(); soon(); });
-    elRank.addEventListener('input', () => { state.rank = elRank.value; state.example = false; resetQuick(); soon(); });
+    if (elRank) elRank.addEventListener('input', () => { state.rank = elRank.value; state.example = false; resetQuick(); soon(); });
     elGroup.addEventListener('change', () => { state.group = elGroup.value; state.K = null; state.sel = null; fillGroups(); save(); refreshAll(); });
     $('#verdict').addEventListener('click', (e) => {
       const b = e.target.closest('[data-group]'); if (!b) return;
       state.group = b.dataset.group; state.K = null; state.sel = null; fillGroups(); save(); refreshAll();
     });
     elIl.addEventListener('change', () => { state.il = elIl.value; save(); refreshAll(); });
-    $('#in-kind').addEventListener('change', (e) => { state.kind = e.target.value; save(); refreshAll(); });
-    $('#in-k').addEventListener('input', (e) => {
+    on('#in-kind', 'change', (e) => { state.kind = e.target.value; save(); refreshAll(); });
+    on('#in-k', 'input', (e) => {
       state.K = String(slider2k(+e.target.value));
       $('#k-out').textContent = fInt(+state.K) + ' kişi';
       soon(refreshAll, 90);
     });
-    $('#k-presets').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; state.K = b.dataset.k; save(); refreshAll(); });
-    $('#in-c0').addEventListener('input', (e) => { state.C0 = e.target.value; soon(); });
+    on('#k-presets', 'click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; state.K = b.dataset.k; save(); refreshAll(); });
+    on('#in-c0', 'input', (e) => { state.C0 = e.target.value; soon(); });
     $('#more-cards').addEventListener('click', () => { state.showAll = !state.showAll; renderGecmis(); });
     $('#in-place').addEventListener('change', (e) => { state.place = e.target.value; state.page = 0; save(); renderList(); });
     $('#in-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 0; soon(renderList, 180); });
@@ -1562,7 +1638,7 @@
       if (e.target.contains(document.activeElement)) document.activeElement.blur();
       goTo($('#quick'));
     });
-    $('#prob-more').addEventListener('toggle', renderProbChart);
+    on('#prob-more', 'toggle', renderProbChart);
     document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (b && ACTIONS[b.dataset.act]) { e.preventDefault(); ACTIONS[b.dataset.act](b); }
@@ -1585,7 +1661,7 @@
       const id = TABS[(i + TABS.length) % TABS.length];
       selectTab(id); $('#t-' + id).focus();
     });
-    $('#cal-form').addEventListener('submit', (e) => {
+    on('#cal-form', 'submit', (e) => {
       e.preventDefault();
       const c = { level: $('#cal-level').value, year: CUR, score: parseScore($('#cal-score').value), rank: parseIntTR($('#cal-rank').value), n: parseIntTR($('#cal-n').value) };
       if (!c.score || c.score < 40 || c.score > 100 || !c.rank) { $('#cal-msg').innerHTML = '<div class="msg bad">Puan (40–100) ve başarı sırası gerekli.</div>'; return; }
@@ -1595,11 +1671,11 @@
       refreshAll();
     });
     const drop = $('#drop');
-    $('#in-file').addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
-    ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
-    ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-    drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
-    $('#copy-tpl').addEventListener('click', async () => {
+    on('#in-file', 'change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
+    if (drop) ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+    if (drop) ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+    if (drop) drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+    on('#copy-tpl', 'click', async () => {
       const txt = $('#tpl').textContent;
       try { await navigator.clipboard.writeText(txt); $('#copy-tpl').textContent = 'Kopyalandı'; }
       catch (e) { const r = document.createRange(); r.selectNodeContents($('#tpl')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('#copy-tpl').textContent = 'Seçildi, kopyala'; }
