@@ -1,6 +1,6 @@
 # KPSS 2026 Atanma Tahmini
 
-**Site:** https://0xdogukan.github.io/kpss-2026-atanma/
+**Site:** https://kpss-2026-atanma.pages.dev/
 
 2026 KPSS puanını ve sonuç belgendeki başarı sıranı gir; 2018–2026 arasındaki 72 ÖSYM yerleştirmesinde (KPSS-2018/3 → KPSS-2026/1) bu sıralamayla hangi kadrolara girebileceğini ve açılacak kadro sayısına göre atanma ihtimalini gör. Lisans (KPSSP3), Ön Lisans (KPSSP93) ve Ortaöğretim (KPSSP94) desteklenir.
 
