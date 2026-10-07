@@ -307,6 +307,9 @@ tr.sel td { background: var(--mark-soft); }
 .msg { font-size: 0.9rem; padding: 10px 12px; border-radius: var(--r-sm); }
 .msg.ok { background: var(--ok-bg); color: var(--ok); } .msg.bad { background: var(--bad-bg); color: var(--bad); }
 .callout { padding: 12px 14px; border-radius: var(--r); background: var(--mark-soft); font-size: 0.92rem; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--brand); }
+.req-chip.miss { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad); text-decoration: line-through; }
 .req { display: flex; flex-wrap: wrap; gap: 4px; }
 .req-chip { font-size: 0.75rem; font-weight: 600; border-radius: 6px; padding: 2px 7px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; cursor: help; }
 .req-chip.edu { background: var(--brand-soft); border-color: transparent; color: var(--brand-text); white-space: normal; }
@@ -525,12 +528,15 @@ footer { margin-top: 44px; font-size: 0.84rem; color: var(--muted); border-top: 
         </div></div>
         <div class="callout"><b>Kılavuzdaki kural:</b> Bir kadroda birden fazla bölüm/alan yazıyorsa <b>birinden mezun olman yeterli</b>; diğer şartların (sertifika, ehliyet, özel koşullar) <b>hepsini</b> sağlaman gerekir. Sertifika, sürücü belgesi ve güvenlik kimlik kartı gibi belgelere <b>tercihlerin son günü</b> itibarıyla sahip olmalısın. <span class="muted">(KPSS-2026/1 Tercih Kılavuzu)</span></div>
         <div class="card sect">
-          <h3>Bölümünle başvurabileceğin kadrolar</h3>
+          <h3>Bölümün ve nitelik kodlarınla başvurabileceğin kadrolar</h3>
           <div class="form-row">
-            <div class="field" style="flex:2 1 16rem"><label for="in-bolum">Mezun olduğun bölüm ya da alan</label><input id="in-bolum" type="search" placeholder="örn. Hemşirelik, İşletme, Büro Yönetimi"></div>
-            <div class="field"><label for="in-nplace">Kılavuz</label><select id="in-nplace"></select></div>
+            <div class="field" style="flex:2 1 14rem"><label for="in-bolum">Mezun olduğun bölüm ya da alan</label><input id="in-bolum" type="search" placeholder="örn. Hemşirelik, İşletme, Büro Yönetimi"></div>
+            <div class="field" style="flex:1 1 11rem"><label for="in-nkod">Nitelik kodların <span class="opt">isteğe bağlı</span></label><input id="in-nkod" type="text" inputmode="numeric" placeholder="örn. 4605, 6225"></div>
+            <div class="field" style="flex:1 1 11rem"><label for="in-nplace">Kılavuz</label><select id="in-nplace"></select></div>
           </div>
-          <div class="hint" id="bolum-codes">Bölümünü yaz; kılavuzdaki eşleşen mezuniyet kodlarını ve bu kodları kabul eden kadroları gösterelim. "Herhangi bir bölümden mezun" isteyen kadrolar da listeye eklenir.</div>
+          <div class="field"><span class="lbl">Sahip olduğun belge ve şartlar <span class="opt">dokunarak seç</span></span><div class="chips" id="nhas-chips"></div></div>
+          <label class="check" for="in-nstrict"><input type="checkbox" id="in-nstrict"> Yalnız tüm şartlarını sağladığım kadroları göster</label>
+          <div class="hint" id="bolum-codes">Bölümünü ya da nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Mezuniyet kodun eşleşen ve "herhangi bir bölümden mezun" isteyen kadrolar listelenir; sertifika, ehliyet gibi diğer şartlar senin seçtiklerinle karşılaştırılır.</div>
         </div>
         <div class="card" id="bolum-card" hidden><div class="tbl-wrap"><table id="tbl-bolum" class="responsive"></table></div><div class="pager" id="bolum-pager"></div></div>
         <div class="card sect"><h3 id="nit-group-title">Seçtiğin kadronun istediği şartlar</h3><p class="small muted" id="nit-group-sub"></p><div id="nit-group"></div></div>

@@ -164,10 +164,10 @@
   // ---------------------------------------------------------------- durum
   const DEFAULTS = { level: 'lisans', score: '80,50000', rank: '', group: 'HEMŞİRE', il: '', mode: 'rank', kind: '', K: null, C0: '0',
     tab: 'gecmis', sel: null, place: null, q: '', sort: 'taban-asc', scope: 'group', page: 0, example: true, showAll: false,
-    bolum: '', nplace: null, bpage: 0 };
+    bolum: '', nkod: '', nhas: [], nstrict: false, nplace: 'all', bpage: 0 };
   const state = Object.assign({}, DEFAULTS, store.get('kpss2026-state', {}));
   function save() {
-    const keep = ['level', 'score', 'rank', 'group', 'il', 'mode', 'kind', 'K', 'C0', 'tab', 'sel', 'place', 'sort', 'scope', 'example', 'bolum', 'nplace'];
+    const keep = ['level', 'score', 'rank', 'group', 'il', 'mode', 'kind', 'K', 'C0', 'tab', 'sel', 'place', 'sort', 'scope', 'example', 'bolum', 'nkod', 'nhas', 'nstrict', 'nplace'];
     const o = {};
     for (const k of keep) o[k] = state[k];
     store.set('kpss2026-state', o);
@@ -718,64 +718,121 @@
   }
   function renderNitelik() {
     const sel = $('#in-nplace');
-    if (!state.nplace || !NIT[state.nplace]) state.nplace = NIT_PIDS[0] || null;
-    sel.innerHTML = NIT_PIDS.map((pid) => { const p = P.find((x) => x.id === pid && !x.user); return `<option value="${esc(pid)}">KPSS-${esc(pid)}${p ? ' · ' + esc(p.kind) : ''}</option>`; }).join('');
-    sel.value = state.nplace || '';
+    if (!state.nplace || (state.nplace !== 'all' && !NIT[state.nplace])) state.nplace = 'all';
+    sel.innerHTML = `<option value="all">Son ${NIT_PIDS.length} kılavuzun tümü</option>` + NIT_PIDS.map((pid) => { const p = P.find((x) => x.id === pid && !x.user); return `<option value="${esc(pid)}">KPSS-${esc(pid)}${p ? ' · ' + esc(p.kind) : ''}</option>`; }).join('');
+    sel.value = state.nplace;
     if (document.activeElement !== $('#in-bolum')) $('#in-bolum').value = state.bolum || '';
+    if (document.activeElement !== $('#in-nkod')) $('#in-nkod').value = state.nkod || '';
+    $('#in-nstrict').checked = !!state.nstrict;
+    renderHasChips();
     renderBolum();
     renderGroupReqs();
     $('#nit-guide').innerHTML = NIT_GUIDE.filter((g) => g.k !== 'diger').map((g) =>
       `<div class="guide"><h4><span class="req-chip ${g.cls}">${esc(g.ad)}</span></h4><p>${esc(g.nasil)}</p></div>`).join('');
   }
+  const scopePids = () => (state.nplace && state.nplace !== 'all' && NIT[state.nplace] ? [state.nplace] : NIT_PIDS);
+  const isEduCode = (c) => '234'.includes(String(c)[0]);
+  const isHard = (txt) => !['ozel', 'kosul', 'diger', 'edu'].includes(catOf(txt).k);
+  function renderHasChips() {
+    const lv = LV[state.level];
+    const cnt = new Map();
+    for (const pid of scopePids()) {
+      const n = NIT[pid];
+      for (const [kod, codes] of Object.entries(n.kodlar)) {
+        if (kod[0] !== lv.kodBas) continue;
+        for (const c of codes) {
+          if (isEduCode(c)) continue;
+          const t = n.sozluk[String(c)];
+          if (!t || !isHard(t)) continue;
+          const e = cnt.get(c) || { n: 0, t };
+          e.n++;
+          cnt.set(c, e);
+        }
+      }
+    }
+    const have = new Set((state.nhas || []).map(Number));
+    const top = [...cnt.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 14);
+    $('#nhas-chips').innerHTML = top.length ? top.map(([c, e]) =>
+      `<button type="button" class="chip" data-has="${c}" aria-pressed="${have.has(c)}" title="${esc(c + ' · ' + e.t)}">${esc(nitShort(e.t))} · ${c}</button>`).join('')
+      : '<span class="small muted">Bu kılavuzlarda belge şartı bulunmadı.</span>';
+  }
+  // Açıklamadaki program adlarından biri aranan kelimeyle BAŞLIYORSA eşleşir ("İşletme" → İşletme, İşletme-Ekonomi; Gemi Makineleri İşletme Müh. değil)
+  function progMatch(text, q) {
+    const body = String(text || '').replace(/ortaöğretim kurumlarının/i, '').replace(/\s*(lisans|önlisans|ön lisans)?\s*program(lar)?(ının birinden|ından)?\s*mezun olmak\.?$/i, '')
+      .replace(/\s*(dalının|dalından|alanının|alanından)\s*(birinden)?\s*mezun olmak\.?$/i, '');
+    return body.split(/,\s*|\s+veya\s+|\s+ya da\s+|\s+-\s+/).some((prog) => up(prog).trim().startsWith(q));
+  }
   function renderBolum() {
-    const pid = state.nplace, n = NIT[pid];
     const card = $('#bolum-card'), info = $('#bolum-codes');
     const q = up(state.bolum).trim();
     const lv = LV[state.level];
-    if (!n || q.length < 3) {
+    const typed = (String(state.nkod || '').match(/\d{4}/g) || []).map(Number);
+    const typedEdu = typed.filter(isEduCode);
+    const have = new Set([...(state.nhas || []).map(Number), ...typed.filter((c) => !isEduCode(c))]);
+    if (q.length < 3 && !typedEdu.length) {
       card.hidden = true;
-      info.textContent = 'Bölümünü yaz (en az 3 harf); kılavuzdaki eşleşen mezuniyet kodlarını ve bu kodları kabul eden kadroları gösterelim. "Herhangi bir bölümden mezun" isteyen kadrolar da listeye eklenir.';
+      info.textContent = 'Bölümünü ya da nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Mezuniyet kodun eşleşen ve "herhangi bir bölümden mezun" isteyen kadrolar listelenir; sertifika, ehliyet gibi diğer şartlar senin seçtiklerinle karşılaştırılır.';
       return;
     }
-    const matches = Object.entries(n.sozluk).filter(([c, t]) => c[0] === lv.edu && c !== String(lv.generic) && up(t).includes(q)).map(([c]) => +c);
-    const mset = new Set(matches);
-    const idx = rowIndexFor(pid);
     const u = user();
-    const p = P.find((x) => x.id === pid && !x.user);
-    const thr = p ? threshold(p, state.level, u) : null;
     const items = [];
-    for (const [kod, codes] of Object.entries(n.kodlar)) {
-      if (kod[0] !== lv.kodBas) continue;
-      const edu = codes.filter((c) => String(c)[0] === lv.edu);
-      const own = edu.some((c) => mset.has(c));
-      const generic = edu.includes(lv.generic);
-      if (!own && !generic) continue;
-      const ri = idx.get(kod);
-      items.push({ kod, own, r: ri != null ? R[ri] : null });
+    const matchedAll = new Map();
+    for (const pid of scopePids()) {
+      const n = NIT[pid];
+      const mine = new Set(typedEdu);
+      if (q.length >= 3) {
+        for (const [c, t] of Object.entries(n.sozluk)) {
+          if (c[0] === lv.edu && c !== String(lv.generic) && progMatch(t, q)) { mine.add(+c); matchedAll.set(+c, t); }
+        }
+      }
+      typedEdu.forEach((c) => { if (n.sozluk[String(c)]) matchedAll.set(c, n.sozluk[String(c)]); });
+      const idx = rowIndexFor(pid);
+      const p = P.find((x) => x.id === pid && !x.user);
+      const thr = p ? threshold(p, state.level, u) : null;
+      for (const [kod, codes] of Object.entries(n.kodlar)) {
+        if (kod[0] !== lv.kodBas) continue;
+        const edu = codes.filter((c) => String(c)[0] === lv.edu);
+        const own = edu.some((c) => mine.has(c));
+        if (!own && !edu.includes(lv.generic)) continue;
+        const missing = codes.filter((c) => !isEduCode(c) && isHard(n.sozluk[String(c)] || '') && !have.has(c));
+        if (state.nstrict && missing.length) continue;
+        const ri = idx.get(kod);
+        const r = ri != null ? R[ri] : null;
+        const reach = r && r[COL.min] != null && thr != null ? (thr >= r[COL.min] ? 'ok' : thr >= r[COL.min] - NEAR ? 'warn' : 'bad') : 'none';
+        items.push({ pid, kod, own, missing, r, reach });
+      }
     }
+    const order = { ok: 0, warn: 1, bad: 2, none: 3 };
     const tb = (it) => (it.r && it.r[COL.min] != null ? it.r[COL.min] : 999);
-    items.sort((a, b) => (b.own - a.own) || (tb(a) - tb(b)));
-    const ownN = items.filter((i) => i.own).length;
-    info.innerHTML = matches.length
-      ? `${esc(lv.ad)} için eşleşen mezuniyet kodu: ${matches.slice(0, 5).map((c) => `<b>${c}</b> (${esc(nitShort(n.sozluk[String(c)]))})`).join(', ')}${matches.length > 5 ? ' ve ' + (matches.length - 5) + ' kod daha' : ''}. KPSS-${esc(pid)}'de bölümüne özel <b>${fInt(ownN)}</b>, her bölüme açık <b>${fInt(items.length - ownN)}</b> kadro var.`
-      : `KPSS-${esc(pid)} kılavuzunda "${esc(state.bolum)}" içeren ${esc(low(lv.ad))} mezuniyet kodu bulunamadı; bölüm adını farklı yazmayı dene (ör. "Hemşirelik", "İktisat"). Her bölüme açık ${fInt(items.length)} kadro yine listede.`;
+    items.sort((a, b) => ((a.missing.length > 0) - (b.missing.length > 0)) || (order[a.reach] - order[b.reach]) || (b.own - a.own) || (tb(a) - tb(b)));
+    const ok = items.filter((i) => !i.missing.length);
+    const okReach = ok.filter((i) => i.reach === 'ok').length;
+    const codesTxt = [...matchedAll.entries()].slice(0, 5).map(([c, t]) => `<b>${c}</b> (${esc(nitShort(t))})`).join(', ');
+    info.innerHTML = (matchedAll.size ? 'Mezuniyet kodun: ' + codesTxt + (matchedAll.size > 5 ? ' ve ' + (matchedAll.size - 5) + ' kod daha' : '') + '. ' : 'Eşleşen mezuniyet kodu bulunamadı; yalnız her bölüme açık kadrolar listelendi. ')
+      + `<b>${fInt(ok.length)}</b> kadronun tüm şartlarını sağlıyorsun; bunların <b>${fInt(okReach)}</b> tanesinde ${state.mode === 'rank' ? 'sıralaman' : 'puanın'} o dönemin tabanını geçiyordu.`
+      + (items.length > ok.length ? ` ${fInt(items.length - ok.length)} kadroda eksik şartın var (kırmızı).` : '');
     card.hidden = !items.length;
     const per = 50, pages = Math.max(1, Math.ceil(items.length / per));
     state.bpage = Math.min(state.bpage, pages - 1);
-    let h = '<thead><tr><th>Kadro</th><th>Kurum · il</th><th class="r">Kont.</th><th class="r">Taban</th><th>Şartlar</th><th>Senin için</th></tr></thead><tbody>';
+    const REACH = { ok: 'Puanın yeterdi', warn: 'Sınırda', bad: 'Puanın yetmezdi', none: '–' };
+    let h = '<thead><tr><th>Kadro</th><th>Kurum · il</th><th class="r">Kont.</th><th class="r">Taban</th><th>Şartlar</th><th>Durum</th></tr></thead><tbody>';
     for (const it of items.slice(state.bpage * per, state.bpage * per + per)) {
-      const r = it.r;
-      const unv = r ? trTitle(DICT.unvan[r[COL.unvan]]) : '–';
-      let st = 'none', lbl = r && r[COL.min] == null ? 'Boş kaldı' : '–';
-      if (r && r[COL.min] != null && thr != null) { st = thr >= r[COL.min] ? 'ok' : thr >= r[COL.min] - NEAR ? 'warn' : 'bad'; lbl = st === 'ok' ? 'Yeterdi' : st === 'warn' ? 'Sınırda' : 'Yetmezdi'; }
-      h += `<tr><td data-label="Kadro"><b>${esc(unv)}</b><div class="code">${esc(it.kod)}</div>${it.own ? '<span class="pill ok">Bölümüne özel</span>' : '<span class="pill none">Her bölüme açık</span>'}</td>
+      const r = it.r, n = NIT[it.pid];
+      const chips = '<div class="req">' + (n.kodlar[it.kod] || []).map((c) => {
+        const txt = n.sozluk[String(c)] || ('Kod ' + c);
+        const cat = catOf(txt);
+        const miss = it.missing.includes(c);
+        const label = cat.k === 'ozel' ? 'Özel şart: ' + txt.replace(/^Bakınız:\s*Başvurma Özel Şartları\s*-\s*/i, '') : nitShort(txt);
+        return `<span class="req-chip ${miss ? 'miss' : cat.cls}" title="${esc(c + ' · ' + txt + ' — Nasıl sağlanır: ' + cat.nasil)}">${esc(label)}</span>`;
+      }).join('') + '</div>';
+      h += `<tr><td data-label="Kadro"><b>${esc(r ? trTitle(DICT.unvan[r[COL.unvan]]) : '–')}</b><div class="code">${esc(it.kod)} · KPSS-${esc(it.pid)}</div>${it.own ? '<span class="pill ok">Bölümüne özel</span>' : '<span class="pill none">Her bölüme açık</span>'}</td>
         <td data-label="Kurum · il">${r ? esc(DICT.kurum[r[COL.kurum]]) + '<div class="small muted">' + esc(trTitle(DICT.il[r[COL.il]])) + '</div>' : '–'}</td>
         <td data-label="Kontenjan" class="r num">${r ? r[COL.kont] : '–'}</td><td data-label="Taban" class="r num">${r ? fSc(r[COL.min], 3) : '–'}</td>
-        <td data-label="Şartlar" class="wide">${reqChips(pid, it.kod)}</td><td data-label="Senin için"><span class="pill ${st}">${lbl}</span></td></tr>`;
+        <td data-label="Şartlar" class="wide">${chips}</td>
+        <td data-label="Durum">${it.missing.length ? '<span class="pill bad">Eksik şart</span>' : '<span class="pill ok">Başvurabilirsin</span>'} <span class="pill ${it.reach}">${REACH[it.reach]}</span></td></tr>`;
     }
     $('#tbl-bolum').innerHTML = h + '</tbody>';
-    const sy = p && p.levels[state.level] ? p.levels[state.level].scoreYear : null;
-    $('#bolum-pager').innerHTML = `<span class="small muted">${fInt(items.length)} kadro · KPSS-${esc(pid)}${sy ? ' (' + sy + ' puanlarıyla)' : ''}</span>
+    $('#bolum-pager').innerHTML = `<span class="small muted">${fInt(items.length)} kadro · taban, o dönemde yerleşen son kişinin puanı</span>
       <span style="display:flex;gap:8px;align-items:center"><button class="btn" type="button" id="bp-prev" ${state.bpage <= 0 ? 'disabled' : ''}>Önceki</button><span class="small tnum">${state.bpage + 1} / ${pages}</span><button class="btn" type="button" id="bp-next" ${state.bpage >= pages - 1 ? 'disabled' : ''}>Sonraki</button></span>`;
     $('#bp-prev').addEventListener('click', () => { state.bpage--; renderBolum(); });
     $('#bp-next').addEventListener('click', () => { state.bpage++; renderBolum(); });
@@ -1177,7 +1234,15 @@
     $('#in-sort').addEventListener('change', (e) => { state.sort = e.target.value; state.page = 0; save(); renderList(); });
     $('#in-scope').addEventListener('change', (e) => { state.scope = e.target.value; state.page = 0; save(); renderList(); });
     $('#in-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; soon(renderBolum, 200); });
-    $('#in-nplace').addEventListener('change', (e) => { state.nplace = e.target.value; state.bpage = 0; save(); renderBolum(); renderGroupReqs(); });
+    $('#in-nplace').addEventListener('change', (e) => { state.nplace = e.target.value; state.bpage = 0; save(); renderHasChips(); renderBolum(); });
+    $('#in-nkod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; soon(renderBolum, 250); });
+    $('#in-nstrict').addEventListener('change', (e) => { state.nstrict = e.target.checked; state.bpage = 0; save(); renderBolum(); });
+    $('#nhas-chips').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-has]'); if (!b) return;
+      const c = +b.dataset.has, set = new Set((state.nhas || []).map(Number));
+      if (set.has(c)) set.delete(c); else set.add(c);
+      state.nhas = [...set]; state.bpage = 0; save(); renderHasChips(); renderBolum();
+    });
     $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[role="tab"]'); if (b) selectTab(b.id.slice(2)); });
     $('#tabs').addEventListener('keydown', (e) => {
       if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
