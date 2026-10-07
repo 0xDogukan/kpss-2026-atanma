@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KPSS 2026 Atanma Tahmini</title>
+<meta name="description" content="2026 KPSS puanını ve başarı sıranı gir; 2018–2026 arası 72 ÖSYM yerleştirmesindeki taban puanlarla karşılaştır, açılacak kadro sayısına göre atanma ihtimalini gör.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="KPSS 2026 Atanma Tahmini">
+<meta property="og:description" content="Puanın ve başarı sıranla geçmiş ÖSYM yerleştirmelerinde hangi kadrolara girebileceğini ve kadro sayısına göre atanma ihtimalini gör.">
+<meta property="og:url" content="https://0xdogukan.github.io/kpss-2026-atanma/">
+<meta name="theme-color" content="#1D5BB8">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2313213A'/%3E%3Crect x='7' y='14' width='4' height='11' fill='%237CAEFF'/%3E%3Crect x='14' y='9' width='4' height='16' fill='%237CAEFF'/%3E%3Crect x='21' y='17' width='4' height='8' fill='%237CAEFF'/%3E%3Crect x='5' y='12' width='22' height='2.5' fill='%23F3C433'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Yerleşim: üstte "aday kartı" şeridi (sonuç belgesi gibi), altında sekmeli çalışma alanı;
+   tablolar belge başlığı mavisiyle, "senin puanın" fosforlu kalem sarısıyla işaretlenir. */
+:root {
+  --paper: #F4F6F9;
+  --surface: #FFFFFF;
+  --ink: #13213A;
+  --muted: #56667E;
+  --rule: #D2DBE7;
+  --head: #DEE8F4;
+  --accent: #1D5BB8;
+  --accent-ink: #FFFFFF;
+  --mark: #F3C433;
+  --mark-soft: rgba(243, 196, 51, 0.28);
+  --mark-ink: #3A2C00;
+  --ok: #1B7A4F; --ok-bg: #E2F2E9;
+  --warn: #A86300; --warn-bg: #FBEFD8;
+  --bad: #B0362E; --bad-bg: #F7E2E0;
+  --none: #8795A9;
+  --shadow: 0 1px 2px rgba(19, 33, 58, 0.06), 0 4px 16px rgba(19, 33, 58, 0.05);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --f-data: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r: 6px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0D1420; --surface: #141E30; --ink: #E4EBF5; --muted: #9AA9BF; --rule: #263550; --head: #1B2A43;
+    --accent: #7CAEFF; --accent-ink: #0A1220; --mark: #F5C842; --mark-soft: rgba(245, 200, 66, 0.22); --mark-ink: #221A00;
+    --ok: #5FCB92; --ok-bg: #143426; --warn: #F0AE52; --warn-bg: #36270F; --bad: #F2867D; --bad-bg: #3B1D1B; --none: #6E7E96;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0D1420; --surface: #141E30; --ink: #E4EBF5; --muted: #9AA9BF; --rule: #263550; --head: #1B2A43;
+  --accent: #7CAEFF; --accent-ink: #0A1220; --mark: #F5C842; --mark-soft: rgba(245, 200, 66, 0.22); --mark-ink: #221A00;
+  --ok: #5FCB92; --ok-bg: #143426; --warn: #F0AE52; --warn-bg: #36270F; --bad: #F2867D; --bad-bg: #3B1D1B; --none: #6E7E96;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 16px/1.5 var(--f-body);
+  padding-inline: max(16px, env(safe-area-inset-left, 0px));
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1180px; margin-inline: auto; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.3rem); font-weight: 700; line-height: 1.12; }
+h2 { font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+.num, .mono { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+.tnum { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+.eyebrow { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* Başlık */
+.masthead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-block: 28px 18px; }
+.masthead .lead { max-width: 64ch; color: var(--muted); margin-top: 8px; }
+.stamp { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 0.8rem; color: var(--muted); text-align: right; }
+.stamp b { color: var(--ink); font-family: var(--f-data); font-weight: 600; }
+
+/* Aday kartı */
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); box-shadow: var(--shadow); }
+.adaycard { overflow: hidden; }
+.adaycard .cap { background: var(--head); padding: 8px 16px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--rule); }
+.adaycard .cap h2 { font-size: 0.95rem; letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--f-body); font-weight: 700; }
+.form { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px 16px; padding: 16px; }
+.f-level { grid-column: span 12; }
+.f-score { grid-column: span 3; }
+.f-rank { grid-column: span 3; }
+.f-group { grid-column: span 3; }
+.f-il { grid-column: span 3; }
+@media (max-width: 900px) { .f-score, .f-rank, .f-group, .f-il { grid-column: span 6; } }
+@media (max-width: 520px) { .f-score, .f-rank, .f-group, .f-il { grid-column: span 12; } }
+label.lbl { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.02em; }
+.hint { font-size: 0.78rem; color: var(--muted); margin-top: 4px; min-height: 1.1em; }
+input[type="text"], input[type="number"], input[type="search"], select {
+  width: 100%; font: inherit; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: var(--r); padding: 9px 11px; min-height: 42px;
+}
+input.big { font-family: var(--f-data); font-size: 1.15rem; font-weight: 600; }
+select { appearance: auto; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: var(--r); overflow: hidden; background: var(--paper); }
+.seg button { font: inherit; border: 0; background: transparent; color: var(--ink); padding: 8px 14px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; border-right: 1px solid var(--rule); }
+.seg button:last-child { border-right: 0; }
+.seg button small { font-family: var(--f-data); font-size: 0.75rem; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg button[aria-pressed="true"] small { color: var(--accent-ink); opacity: 0.85; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font: inherit; font-size: 0.8rem; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.example-flag { font-size: 0.75rem; background: var(--mark-soft); color: var(--ink); border-radius: 4px; padding: 2px 8px; }
+
+/* Özet şeridi */
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--rule); }
+.summary > div { padding: 14px 16px; border-right: 1px solid var(--rule); min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.summary > div:last-child { border-right: 0; }
+.summary .k { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.summary .v { font-family: var(--f-data); font-size: 1.45rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.summary .d { font-size: 0.85rem; color: var(--muted); }
+.summary .v .unit { font-size: 0.8rem; color: var(--muted); font-weight: 400; margin-left: 4px; }
+.hl { background: linear-gradient(transparent 55%, var(--mark-soft) 55%); padding-inline: 2px; }
+@media (max-width: 900px) { .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .summary > div:nth-child(2) { border-right: 0; } .summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--rule); } }
+@media (max-width: 480px) { .summary { grid-template-columns: minmax(0, 1fr); } .summary > div { border-right: 0; border-bottom: 1px solid var(--rule); } .summary > div:last-child { border-bottom: 0; } }
+
+/* Sekmeler */
+.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--paper); margin-top: 22px; border-bottom: 1px solid var(--rule); display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+.tabs button { font: inherit; font-weight: 600; font-size: 0.95rem; color: var(--muted); background: transparent; border: 0; border-bottom: 3px solid transparent; padding: 12px 14px 9px; cursor: pointer; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.panel { padding-top: 20px; display: flex; flex-direction: column; gap: 18px; }
+.panel-head { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: flex-end; justify-content: space-between; }
+.panel-head p { max-width: 70ch; color: var(--muted); margin-top: 4px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.controls .ctl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.controls select { min-width: 12rem; width: auto; }
+
+/* Grafik */
+.chart-box { padding: 14px 16px 10px; }
+.chart-scroll { overflow-x: auto; }
+.chart-scroll svg { display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.82rem; color: var(--muted); padding-top: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw.ok { background: var(--ok); } .sw.warn { background: var(--warn); } .sw.bad { background: var(--bad); } .sw.mark { background: var(--mark); height: 4px; width: 16px; border-radius: 2px; }
+svg text { fill: var(--muted); font-family: var(--f-body); }
+.detail { padding: 14px 16px; border-top: 1px solid var(--rule); font-size: 0.92rem; }
+
+/* Tablolar */
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th { background: var(--head); text-align: left; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.03em; padding: 8px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; position: sticky; top: 0; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td.r, th.r { text-align: right; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--paper); }
+tr.sel td { background: var(--mark-soft); }
+tr.group-row td { background: var(--head); font-weight: 700; }
+.pill { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+.pill.none { background: var(--paper); color: var(--none); border: 1px solid var(--rule); }
+.meter { position: relative; height: 8px; background: var(--paper); border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; min-width: 80px; }
+.meter i { position: absolute; inset: 0 auto 0 0; background: var(--ok); }
+.meter i + i { background: var(--warn); }
+.code { font-family: var(--f-data); font-size: 0.82rem; color: var(--muted); }
+.pager { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 12px; flex-wrap: wrap; }
+.btn { font: inherit; font-weight: 600; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: var(--r); padding: 8px 14px; cursor: pointer; min-height: 40px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+/* Senaryo */
+.scen-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; }
+@media (max-width: 900px) { .scen-grid { grid-template-columns: minmax(0, 1fr); } }
+.scen-in { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.big-prob { display: flex; flex-wrap: wrap; gap: 14px 28px; padding: 16px; border-bottom: 1px solid var(--rule); }
+.big-prob .item { display: flex; flex-direction: column; gap: 2px; min-width: 9rem; }
+.big-prob .val { font-family: var(--f-data); font-size: 2.2rem; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.big-prob .val.ok { color: var(--ok); } .big-prob .val.warn { color: var(--warn); } .big-prob .val.bad { color: var(--bad); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 0.92rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+.note { font-size: 0.85rem; color: var(--muted); padding: 12px 16px; border-top: 1px solid var(--rule); }
+.callout { padding: 12px 16px; border-left: 4px solid var(--mark); background: var(--mark-soft); border-radius: 0 var(--r) var(--r) 0; font-size: 0.92rem; }
+
+/* 2026 */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--rule); }
+.timeline li:last-child { border-bottom: 0; }
+.timeline .when { font-family: var(--f-data); font-size: 0.85rem; color: var(--muted); }
+.timeline li.done .when { text-decoration: line-through; text-decoration-color: var(--rule); }
+.timeline li.next { background: var(--mark-soft); }
+.sect-pad { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.prose { max-width: 75ch; display: flex; flex-direction: column; gap: 10px; }
+.prose li { margin-bottom: 4px; }
+.prose code, .tpl { font-family: var(--f-data); font-size: 0.82rem; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px; }
+.tpl { display: block; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+.drop { border: 2px dashed var(--rule); border-radius: var(--r); padding: 18px; text-align: center; color: var(--muted); }
+.drop.over { border-color: var(--accent); color: var(--ink); }
+.msg { font-size: 0.9rem; padding: 8px 12px; border-radius: var(--r); }
+.msg.ok { background: var(--ok-bg); color: var(--ok); } .msg.bad { background: var(--bad-bg); color: var(--bad); }
+footer { margin-top: 36px; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.loading { padding: 40px 0; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .fade { animation: fade 0.25s ease-out; } @keyframes fade { from { opacity: 0.4; } to { opacity: 1; } } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">KPSS · Lisans P3 · Ön Lisans P93 · Ortaöğretim P94</p>
+      <h1>KPSS 2026 Atanma Tahmini</h1>
+      <p class="lead">2026 puanını ve sonuç belgendeki başarı sıranı gir. 2018–2026 arası tüm ÖSYM yerleştirmelerinde bu sıralamayla hangi kadrolara girebileceğini ve açılacak kadro sayısına göre atanma ihtimalini gör.</p>
+    </div>
+    <div class="stamp" id="stamp"><span>Veri: ÖSYM yerleştirme sonuçları</span><span>yükleniyor…</span></div>
+  </header>
+
+  <section class="card adaycard" aria-labelledby="aday-baslik">
+    <div class="cap">
+      <h2 id="aday-baslik">Aday bilgileri</h2>
+      <span class="example-flag" id="example-flag">Örnek değerler · kendi puanını yaz</span>
+    </div>
+    <form class="form" id="aday-form" autocomplete="off">
+      <div class="f-level">
+        <span class="lbl" id="lvl-lbl">Öğrenim düzeyi ve puan türü</span>
+        <div class="seg" role="group" aria-labelledby="lvl-lbl" id="level-seg">
+          <button type="button" data-level="lisans" aria-pressed="true">Lisans <small>KPSSP3</small></button>
+          <button type="button" data-level="onlisans" aria-pressed="false">Ön Lisans <small>KPSSP93</small></button>
+          <button type="button" data-level="ortaogretim" aria-pressed="false">Ortaöğretim <small>KPSSP94</small></button>
+        </div>
+      </div>
+      <div class="f-score">
+        <label class="lbl" for="in-score">2026 KPSS puanın</label>
+        <input class="big" id="in-score" type="text" inputmode="decimal" placeholder="örn. 81,73954">
+        <div class="hint" id="score-hint"></div>
+      </div>
+      <div class="f-rank">
+        <label class="lbl" for="in-rank">Başarı sıran (sonuç belgesinden)</label>
+        <input class="big" id="in-rank" type="text" inputmode="numeric" placeholder="boş bırakırsan tahmin edilir">
+        <div class="hint" id="rank-hint"></div>
+      </div>
+      <div class="f-group">
+        <label class="lbl" for="in-group">Kadro unvanı</label>
+        <select id="in-group"></select>
+        <div class="chips" id="group-chips"></div>
+      </div>
+      <div class="f-il">
+        <label class="lbl" for="in-il">İl (isteğe bağlı)</label>
+        <select id="in-il"><option value="">Tüm iller</option></select>
+        <div class="hint">Tek bir il seçersen yalnız o ildeki kadrolar sayılır.</div>
+      </div>
+    </form>
+    <div class="summary" id="summary" aria-live="polite"></div>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Bölümler" id="tabs">
+    <button role="tab" id="t-gecmis" aria-controls="gecmis" aria-selected="true">Geçmiş yerleştirmeler</button>
+    <button role="tab" id="t-ihtimal" aria-controls="ihtimal" aria-selected="false">Atanma ihtimali</button>
+    <button role="tab" id="t-liste" aria-controls="liste" aria-selected="false">Kadro listesi</button>
+    <button role="tab" id="t-kadro2026" aria-controls="kadro2026" aria-selected="false">2026 kadroları</button>
+    <button role="tab" id="t-veri" aria-controls="veri" aria-selected="false">Veri ekle</button>
+    <button role="tab" id="t-yontem" aria-controls="yontem" aria-selected="false">Yöntem ve kaynaklar</button>
+  </nav>
+
+  <main>
+    <!-- GEÇMİŞ -->
+    <section class="panel" role="tabpanel" id="gecmis" aria-labelledby="t-gecmis">
+      <div class="panel-head">
+        <div>
+          <h2 id="gecmis-title">Geçmiş yerleştirmelerde taban puanlar</h2>
+          <p>Her sütun bir ÖSYM yerleştirmesi: çizgi en düşük ve en yüksek tabanı, kutu ortadaki yarıyı, çentik medyanı gösterir. Sarı çizgi senin konumun.</p>
+        </div>
+        <div class="controls">
+          <div class="ctl"><label class="lbl" for="in-mode">Karşılaştırma ölçütü</label>
+            <select id="in-mode">
+              <option value="rank">Başarı sırası eşdeğeri (önerilen)</option>
+              <option value="raw">Ham puan</option>
+            </select></div>
+          <div class="ctl"><label class="lbl" for="in-kind">Yerleştirme türü</label>
+            <select id="in-kind"><option value="">Tümü</option></select></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="chart-box">
+          <div class="chart-scroll" id="range-chart"></div>
+          <div class="legend" id="range-legend"></div>
+        </div>
+        <div class="detail" id="range-detail"></div>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table id="tbl-placements"></table>
+        </div>
+      </div>
+      <div class="card" id="hemsire-card" hidden>
+        <div class="sect-pad">
+          <h3>Uzun dönem: lisans hemşire alımları (2003–2025)</h3>
+          <p class="small muted" id="hemsire-src"></p>
+        </div>
+        <div class="tbl-wrap"><table id="tbl-hemsire"></table></div>
+      </div>
+    </section>
+
+    <!-- İHTİMAL -->
+    <section class="panel" role="tabpanel" id="ihtimal" aria-labelledby="t-ihtimal" hidden>
+      <div class="panel-head">
+        <div>
+          <h2 id="ihtimal-title">Şu kadar atama olursa</h2>
+          <p>2026 puanlarıyla açılacak kadro sayısını seç. Tahmin, geçmiş döngülerde aynı unvanda açılan kadro sayısı ile en düşük tabanların başarı sırası arasındaki orandan hesaplanır.</p>
+        </div>
+      </div>
+      <div class="scen-grid">
+        <div class="card scen-in">
+          <div>
+            <label class="lbl" for="in-k">Bu unvana 2026 puanlarıyla açılacak kadro</label>
+            <input id="in-k" type="range" min="0" max="1000" step="1">
+            <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+              <input id="in-k-num" type="text" inputmode="numeric" class="big" style="max-width:10rem">
+              <span class="muted small">kadro</span>
+            </div>
+            <div class="chips" id="k-presets"></div>
+          </div>
+          <div>
+            <label class="lbl" for="in-c0">Daha önce 2026 puanlarıyla yapılmış alım (aynı unvan)</label>
+            <input id="in-c0" type="text" inputmode="numeric" value="0">
+            <div class="hint">Örneğin KPSS-2026/2'de bu unvandan kadro açılırsa ve sonra Sağlık Bakanlığı alımı gelirse ilkini buraya yaz.</div>
+          </div>
+          <dl class="kv" id="scen-kv"></dl>
+        </div>
+        <div class="card">
+          <div class="big-prob" id="scen-big"></div>
+          <div class="chart-box"><div class="chart-scroll" id="prob-chart"></div>
+            <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>Her ili tercih eden aday</span><span><i class="sw" style="background:var(--ok)"></i>Tipik (medyan) kadro</span><span><i class="sw mark"></i>Seçili kadro sayısı</span></div>
+          </div>
+          <div class="note" id="scen-note"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="sect-pad"><h3>Modelin dayandığı geçmiş alımlar</h3>
+          <p class="small muted">"Oran" = o alımdaki en düşük tabanın başarı sırası ÷ aynı puan döngüsünde o güne kadar bu unvana yerleşen toplam kişi. Yakın döngüler daha ağır tartılır.</p></div>
+        <div class="tbl-wrap"><table id="tbl-scen"></table></div>
+      </div>
+    </section>
+
+    <!-- LİSTE -->
+    <section class="panel" role="tabpanel" id="liste" aria-labelledby="t-liste" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Kadro listesi</h2>
+          <p>Seçili yerleştirmedeki tüm kadrolar, taban ve tavan puanları ile senin durumun. Kurum, il ya da kadro kodu ile arayabilirsin.</p>
+        </div>
+        <div class="controls">
+          <div class="ctl"><label class="lbl" for="in-place">Yerleştirme</label><select id="in-place"></select></div>
+          <div class="ctl"><label class="lbl" for="in-q">Ara</label><input id="in-q" type="search" placeholder="kurum, il, unvan, kod"></div>
+          <div class="ctl"><label class="lbl" for="in-sort">Sırala</label>
+            <select id="in-sort">
+              <option value="taban-asc">Taban (düşükten)</option>
+              <option value="taban-desc">Taban (yüksekten)</option>
+              <option value="kont-desc">Kontenjan</option>
+              <option value="il">İl</option>
+            </select></div>
+          <div class="ctl"><label class="lbl" for="in-scope">Unvan filtresi</label>
+            <select id="in-scope"><option value="group">Seçili unvan</option><option value="all">Tüm unvanlar</option></select></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table id="tbl-list"></table></div>
+        <div class="pager" id="list-pager"></div>
+      </div>
+    </section>
+
+    <!-- 2026 -->
+    <section class="panel" role="tabpanel" id="kadro2026" aria-labelledby="t-kadro2026" hidden>
+      <div class="panel-head"><div>
+        <h2>2026 kadroları ve takvim</h2>
+        <p>2026'da tamamlanan ve beklenen merkezi yerleştirmeler. Tarihler ÖSYM 2026 sınav takviminden alınmıştır.</p>
+      </div></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="sect-pad"><h3>2026 takvimi</h3></div>
+          <ul class="timeline" id="timeline"></ul>
+        </div>
+        <div class="card">
+          <div class="sect-pad"><h3>KPSS-2026/1 sonuçları</h3><p class="small muted" id="k2026-sub"></p></div>
+          <div class="tbl-wrap"><table id="tbl-2026-levels"></table></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="sect-pad"><h3 id="k2026-title">KPSS-2026/1: unvanlara göre kadrolar ve tabanlar</h3>
+          <p class="small muted">Bu yerleştirme 2024 puanlarıyla yapıldı; senin durumun sıralama eşdeğerine göre gösterilir.</p></div>
+        <div class="tbl-wrap"><table id="tbl-2026-groups"></table></div>
+      </div>
+      <div class="card">
+        <div class="sect-pad">
+          <h3>Beklenen alımlar hakkında bilinenler</h3>
+          <div class="prose small" id="news"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VERİ -->
+    <section class="panel" role="tabpanel" id="veri" aria-labelledby="t-veri" hidden>
+      <div class="panel-head"><div>
+        <h2>Veri ekle</h2>
+        <p>Eklediğin veriler yalnızca bu tarayıcıda saklanır. Yeni bir yerleştirme sonucu açıklandığında ya da Ön Lisans/Ortaöğretim sonuçları geldiğinde modeli buradan güncelleyebilirsin.</p>
+      </div></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="sect-pad">
+            <h3>Sonuç belgesinden kalibrasyon noktası</h3>
+            <p class="small muted">Sonuç belgesindeki puan, başarı sırası ve aday sayısını gir. Model, bu noktalara göre o yılın puan → sıra eğrisini düzeltir. Ön Lisans (30 Ekim) ve Ortaöğretim (19 Kasım) sonuçları açıklandığında özellikle işe yarar.</p>
+            <form id="cal-form" class="controls">
+              <div class="ctl"><label class="lbl" for="cal-level">Düzey</label>
+                <select id="cal-level"><option value="lisans">Lisans (P3)</option><option value="onlisans">Ön Lisans (P93)</option><option value="ortaogretim">Ortaöğretim (P94)</option></select></div>
+              <div class="ctl"><label class="lbl" for="cal-score">Puan</label><input id="cal-score" type="text" inputmode="decimal" style="width:8rem"></div>
+              <div class="ctl"><label class="lbl" for="cal-rank">Başarı sırası</label><input id="cal-rank" type="text" inputmode="numeric" style="width:8rem"></div>
+              <div class="ctl"><label class="lbl" for="cal-n">Aday sayısı</label><input id="cal-n" type="text" inputmode="numeric" style="width:8rem"></div>
+              <div class="ctl"><button class="btn primary" type="submit">Ekle</button></div>
+            </form>
+            <div id="cal-msg"></div>
+          </div>
+          <div class="tbl-wrap"><table id="tbl-cal"></table></div>
+        </div>
+        <div class="card">
+          <div class="sect-pad">
+            <h3>Yeni yerleştirme sonucu (CSV / Excel)</h3>
+            <p class="small muted">ÖSYM "En Küçük ve En Büyük Puanlar" tablosunu aşağıdaki sütunlarla bir dosyaya aktar ve yükle. Projedeki <code>scripts/guncelle.py</code> betiği bu dosyayı ÖSYM PDF'lerinden otomatik üretir.</p>
+            <label class="drop" id="drop" for="in-file">Dosyayı buraya bırak ya da seçmek için tıkla<br><span class="small">.csv, .xlsx</span></label>
+            <input id="in-file" type="file" accept=".csv,.txt,.xlsx,.xls" hidden>
+            <div id="file-msg"></div>
+            <p class="small muted">Beklenen başlık satırı (noktalı virgülle):</p>
+            <code class="tpl" id="tpl">donem;sonuc_tarihi;yerlestirme_turu;duzey;puan_yili;kadro_kodu;kurum;il;birim;kadro_unvani;unvan_grubu;kontenjan;yerlesen;bos;en_kucuk_puan;en_buyuk_puan</code>
+            <div><button class="btn" type="button" id="copy-tpl">Başlığı kopyala</button></div>
+          </div>
+          <div class="tbl-wrap"><table id="tbl-uploads"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- YÖNTEM -->
+    <section class="panel" role="tabpanel" id="yontem" aria-labelledby="t-yontem" hidden>
+      <div class="card"><div class="sect-pad prose" id="method"></div></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Bu araç bağımsız bir analizdir; ÖSYM ya da herhangi bir kamu kurumuyla bağlantısı yoktur. Tahminler geçmiş yerleştirmelere dayanır ve kesinlik taşımaz. Tercih yapmadan önce güncel tercih kılavuzunu ve nitelik şartlarını kontrol et.</p>
+    <p id="foot-data"></p>
+  </footer>
+</div>
+<script src="data/kpss-data.js"></script>
+<script src="data/rank-models.js"></script>
+<script src="data/hemsire-tarihce.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
