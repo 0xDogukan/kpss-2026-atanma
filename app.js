@@ -164,10 +164,10 @@
   // ---------------------------------------------------------------- durum
   const DEFAULTS = { level: 'lisans', score: '80,50000', rank: '', group: 'HEMŞİRE', il: '', mode: 'rank', kind: '', K: null, C0: '0',
     tab: 'gecmis', sel: null, place: null, q: '', sort: 'taban-asc', scope: 'group', page: 0, example: true, showAll: false,
-    bolum: '', nkod: '', nhas: [], nstrict: false, nplace: 'all', bpage: 0 };
+    bolum: '', nkod: '', nhas: [], nstrict: false, nplace: 'all', bpage: 0, qyear: '2026' };
   const state = Object.assign({}, DEFAULTS, store.get('kpss2026-state', {}));
   function save() {
-    const keep = ['level', 'score', 'rank', 'group', 'il', 'mode', 'kind', 'K', 'C0', 'tab', 'sel', 'place', 'sort', 'scope', 'example', 'bolum', 'nkod', 'nhas', 'nstrict', 'nplace'];
+    const keep = ['level', 'score', 'rank', 'group', 'il', 'mode', 'kind', 'K', 'C0', 'tab', 'sel', 'place', 'sort', 'scope', 'example', 'bolum', 'nkod', 'nhas', 'nstrict', 'nplace', 'qyear'];
     const o = {};
     for (const k of keep) o[k] = state[k];
     store.set('kpss2026-state', o);
@@ -765,43 +765,15 @@
   function renderBolum() {
     const card = $('#bolum-card'), info = $('#bolum-codes');
     const q = up(state.bolum).trim();
-    const lv = LV[state.level];
     const typed = (String(state.nkod || '').match(/\d{4}/g) || []).map(Number);
-    const typedEdu = typed.filter(isEduCode);
-    const have = new Set([...(state.nhas || []).map(Number), ...typed.filter((c) => !isEduCode(c))]);
-    if (q.length < 3 && !typedEdu.length) {
+    if (q.length < 3 && !typed.some(isEduCode)) {
       card.hidden = true;
       info.textContent = 'Bölümünü ya da nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Mezuniyet kodun eşleşen ve "herhangi bir bölümden mezun" isteyen kadrolar listelenir; sertifika, ehliyet gibi diğer şartlar senin seçtiklerinle karşılaştırılır.';
       return;
     }
-    const u = user();
-    const items = [];
-    const matchedAll = new Map();
-    for (const pid of scopePids()) {
-      const n = NIT[pid];
-      const mine = new Set(typedEdu);
-      if (q.length >= 3) {
-        for (const [c, t] of Object.entries(n.sozluk)) {
-          if (c[0] === lv.edu && c !== String(lv.generic) && progMatch(t, q)) { mine.add(+c); matchedAll.set(+c, t); }
-        }
-      }
-      typedEdu.forEach((c) => { if (n.sozluk[String(c)]) matchedAll.set(c, n.sozluk[String(c)]); });
-      const idx = rowIndexFor(pid);
-      const p = P.find((x) => x.id === pid && !x.user);
-      const thr = p ? threshold(p, state.level, u) : null;
-      for (const [kod, codes] of Object.entries(n.kodlar)) {
-        if (kod[0] !== lv.kodBas) continue;
-        const edu = codes.filter((c) => String(c)[0] === lv.edu);
-        const own = edu.some((c) => mine.has(c));
-        if (!own && !edu.includes(lv.generic)) continue;
-        const missing = codes.filter((c) => !isEduCode(c) && isHard(n.sozluk[String(c)] || '') && !have.has(c));
-        if (state.nstrict && missing.length) continue;
-        const ri = idx.get(kod);
-        const r = ri != null ? R[ri] : null;
-        const reach = r && r[COL.min] != null && thr != null ? (thr >= r[COL.min] ? 'ok' : thr >= r[COL.min] - NEAR ? 'warn' : 'bad') : 'none';
-        items.push({ pid, kod, own, missing, r, reach });
-      }
-    }
+    const found = findKadros(scopePids(), q, typed, user());
+    const matchedAll = found.matched;
+    const items = state.nstrict ? found.items.filter((it) => !it.missing.length) : found.items;
     const order = { ok: 0, warn: 1, bad: 2, none: 3 };
     const tb = (it) => (it.r && it.r[COL.min] != null ? it.r[COL.min] : 999);
     items.sort((a, b) => ((a.missing.length > 0) - (b.missing.length > 0)) || (order[a.reach] - order[b.reach]) || (b.own - a.own) || (tb(a) - tb(b)));
@@ -836,6 +808,73 @@
       <span style="display:flex;gap:8px;align-items:center"><button class="btn" type="button" id="bp-prev" ${state.bpage <= 0 ? 'disabled' : ''}>Önceki</button><span class="small tnum">${state.bpage + 1} / ${pages}</span><button class="btn" type="button" id="bp-next" ${state.bpage >= pages - 1 ? 'disabled' : ''}>Sonraki</button></span>`;
     $('#bp-prev').addEventListener('click', () => { state.bpage--; renderBolum(); });
     $('#bp-next').addEventListener('click', () => { state.bpage++; renderBolum(); });
+  }
+  // ---------------------------------------------------------------- hızlı arama
+  // Verilen kılavuzlarda, bölüm/kod ile eğitim şartı tutan kadroları; eksik şartları ve taban durumuyla döndürür.
+  function findKadros(pids, q, typed, u) {
+    const lv = LV[state.level];
+    const typedEdu = typed.filter(isEduCode);
+    const have = new Set([...(state.nhas || []).map(Number), ...typed.filter((c) => !isEduCode(c))]);
+    const items = [], matched = new Map();
+    for (const pid of pids) {
+      const n = NIT[pid];
+      const mine = new Set(typedEdu);
+      if (q.length >= 3) for (const [c, t] of Object.entries(n.sozluk)) if (c[0] === lv.edu && c !== String(lv.generic) && progMatch(t, q)) { mine.add(+c); matched.set(+c, t); }
+      typedEdu.forEach((c) => { if (n.sozluk[String(c)]) matched.set(c, n.sozluk[String(c)]); });
+      const idx = rowIndexFor(pid);
+      const p = P.find((x) => x.id === pid && !x.user);
+      const thr = p ? threshold(p, state.level, u) : null;
+      for (const [kod, codes] of Object.entries(n.kodlar)) {
+        if (kod[0] !== lv.kodBas) continue;
+        const edu = codes.filter((c) => String(c)[0] === lv.edu);
+        const own = edu.some((c) => mine.has(c));
+        if (!own && !edu.includes(lv.generic)) continue;
+        const missing = codes.filter((c) => !isEduCode(c) && isHard(n.sozluk[String(c)] || '') && !have.has(c));
+        const ri = idx.get(kod);
+        const r = ri != null ? R[ri] : null;
+        const reach = r && r[COL.min] != null && thr != null ? (thr >= r[COL.min] ? 'ok' : thr >= r[COL.min] - NEAR ? 'warn' : 'bad') : 'none';
+        items.push({ pid, kod, own, missing, r, reach, thr });
+      }
+    }
+    return { items, matched };
+  }
+  let qsLimit = 24;
+  function renderQuick() {
+    $$('#qs-year button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.y === state.qyear)));
+    const box = $('#qs-results'), info = $('#qs-info'), more = $('#qs-more');
+    const u = user();
+    const typed = (String(state.nkod || '').match(/\d{4}/g) || []).map(Number);
+    const q = up(state.bolum).trim();
+    const stop = (msg) => { info.textContent = msg; box.innerHTML = ''; more.hidden = true; };
+    if (!NIT_PIDS.length) return stop('Nitelik verisi yüklenemedi.');
+    if (u.score == null) return stop('Puanını yaz; ardından bölümünü ya da nitelik kodunu gir.');
+    if (q.length < 3 && !typed.some(isEduCode)) return stop('Bölümünü (en az 3 harf) ya da mezuniyet nitelik kodunu yaz (ör. Hemşirelik ya da 4605). Sertifika, ehliyet gibi kodları da ekleyebilirsin (ör. 6225, 6506).');
+    const pids = NIT_PIDS.filter((pid) => state.qyear === 'all' || (state.qyear === '2026' ? pid.startsWith('2026') : !pid.startsWith('2026')));
+    const { items } = findKadros(pids, q, typed, u);
+    const ok = items.filter((it) => !it.missing.length && it.reach === 'ok');
+    const near = items.filter((it) => !it.missing.length && it.reach === 'warn').length;
+    const miss = items.filter((it) => it.missing.length && it.reach === 'ok').length;
+    ok.sort((a, b) => (b.r[COL.min] - a.r[COL.min]));
+    info.innerHTML = (state.example ? '<b>Örnek puan</b> kullanılıyor; kendi puanını yaz. ' : '') + `${pids.map((p) => 'KPSS-' + esc(p)).join(', ')} içinde bu bilgilerle <b>${fInt(ok.length)}</b> kadroya girebilirdin (tüm şartlarını sağladığın ve ${state.mode === 'rank' ? 'sıralamanın' : 'puanının'} tabanı geçtiği kadrolar; en yüksek tabandan başlayarak).`
+      + (near ? ` ${fInt(near)} kadroda sınırdasın.` : '')
+      + (miss ? ` ${fInt(miss)} kadroda puanın yetiyor ama bir belge şartın eksik; ayrıntı "Nitelik şartları" sekmesinde.` : '')
+      + ' Tabanlar o dönemin sonuçlarıdır; yeni alımlarda değişebilir.';
+    box.innerHTML = ok.slice(0, qsLimit).map((it) => {
+      const r = it.r;
+      return `<article class="qs-item"><span class="t">${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</span>
+        <span class="meta">${esc(DICT.kurum[r[COL.kurum]])} · ${esc(trTitle(DICT.il[r[COL.il]]))}</span>
+        <span class="tb"><span>Taban <b class="tnum">${fSc(r[COL.min], 2)}</b></span><span>Senin karşılığın <b class="tnum hl">${fSc(it.thr, 2)}</b></span></span>
+        <span class="meta">KPSS-${esc(it.pid)} · ${r[COL.kont]} kontenjan · kod ${esc(it.kod)}</span>
+        ${reqChips(it.pid, it.kod)}</article>`;
+    }).join('') || '<p class="muted small">Bu bilgilerle tabanını geçtiğin ve tüm şartlarını sağladığın kadro bulunamadı. Dönemi "Tümü" yap ya da nitelik kodlarını kontrol et.</p>';
+    more.hidden = ok.length <= qsLimit;
+    if (!more.hidden) more.textContent = `Daha fazla göster (${fInt(ok.length - qsLimit)} kadro daha)`;
+  }
+  function syncInputs() {
+    const pairs = [['#in-score', 'score'], ['#qs-score', 'score'], ['#in-rank', 'rank'], ['#qs-rank', 'rank'],
+      ['#in-bolum', 'bolum'], ['#qs-bolum', 'bolum'], ['#in-nkod', 'nkod'], ['#qs-kod', 'nkod']];
+    for (const [sel, k] of pairs) { const el = $(sel); if (el && document.activeElement !== el) el.value = state[k] || ''; }
+    $('#qs-level').value = state.level;
   }
   function renderGroupReqs() {
     const g = grpIdx();
@@ -1193,7 +1232,7 @@
     else if (t === 'kadro2026') render2026();
     else if (t === 'veri') renderVeri();
   }
-  function refreshAll() { renderVerdict(user()); renderTab(); }
+  function refreshAll() { syncInputs(); renderVerdict(user()); renderQuick(); renderTab(); }
   let timer = null;
   function soon(fn = refreshAll, ms = 140) { clearTimeout(timer); timer = setTimeout(() => { save(); fn(); }, ms); }
 
@@ -1233,9 +1272,17 @@
     $('#in-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 0; soon(renderList, 180); });
     $('#in-sort').addEventListener('change', (e) => { state.sort = e.target.value; state.page = 0; save(); renderList(); });
     $('#in-scope').addEventListener('change', (e) => { state.scope = e.target.value; state.page = 0; save(); renderList(); });
-    $('#in-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; soon(renderBolum, 200); });
+    $('#in-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; soon(); });
     $('#in-nplace').addEventListener('change', (e) => { state.nplace = e.target.value; state.bpage = 0; save(); renderHasChips(); renderBolum(); });
-    $('#in-nkod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; soon(renderBolum, 250); });
+    $('#in-nkod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; soon(); });
+    $('#qs-score').addEventListener('input', (e) => { state.score = e.target.value; state.example = false; qsLimit = 24; soon(); });
+    $('#qs-rank').addEventListener('input', (e) => { state.rank = e.target.value; state.example = false; qsLimit = 24; soon(); });
+    $('#qs-bolum').addEventListener('input', (e) => { state.bolum = e.target.value; state.bpage = 0; qsLimit = 24; soon(refreshAll, 220); });
+    $('#qs-kod').addEventListener('input', (e) => { state.nkod = e.target.value; state.bpage = 0; qsLimit = 24; soon(refreshAll, 220); });
+    $('#qs-level').addEventListener('change', (e) => { state.level = e.target.value; state.sel = null; state.place = null; state.K = null; state.bpage = 0; qsLimit = 24; syncSegs(); fillGroups(); save(); refreshAll(); });
+    $('#qs-year').addEventListener('click', (e) => { const b = e.target.closest('[data-y]'); if (!b) return; state.qyear = b.dataset.y; qsLimit = 24; save(); renderQuick(); });
+    $('#qs-more').addEventListener('click', () => { qsLimit += 48; renderQuick(); });
+    $('#quick-form').addEventListener('submit', (e) => e.preventDefault());
     $('#in-nstrict').addEventListener('change', (e) => { state.nstrict = e.target.checked; state.bpage = 0; save(); renderBolum(); });
     $('#nhas-chips').addEventListener('click', (e) => {
       const b = e.target.closest('[data-has]'); if (!b) return;

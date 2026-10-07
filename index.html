@@ -307,6 +307,16 @@ tr.sel td { background: var(--mark-soft); }
 .msg { font-size: 0.9rem; padding: 10px 12px; border-radius: var(--r-sm); }
 .msg.ok { background: var(--ok-bg); color: var(--ok); } .msg.bad { background: var(--bad-bg); color: var(--bad); }
 .callout { padding: 12px 14px; border-radius: var(--r); background: var(--mark-soft); font-size: 0.92rem; }
+.quick { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
+.quick .card-head h2 { font-size: 1.25rem; }
+.quick-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
+@media (max-width: 860px) { .quick-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .quick-form { grid-template-columns: minmax(0, 1fr); } }
+.qs-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.qs-item { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; background: var(--surface); }
+.qs-item .t { font-family: var(--f-display); font-weight: 700; font-size: 1.02rem; }
+.qs-item .meta { font-size: 0.82rem; color: var(--muted); }
+.qs-item .tb { display: flex; justify-content: space-between; gap: 8px; font-size: 0.86rem; }
 .check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--brand); }
 .req-chip.miss { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad); text-decoration: line-through; }
@@ -347,6 +357,26 @@ footer { margin-top: 44px; font-size: 0.84rem; color: var(--muted); border-top: 
       <li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>2026 sonuç belgeleriyle ayarlandı</li>
       <li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Ücretsiz · kayıt yok · veri toplamaz</li>
     </ul>
+  </section>
+
+  <section class="card quick" id="quick" aria-labelledby="q-title">
+    <div class="card-head"><h2 id="q-title">Hızlı arama: girebileceğin kadrolar</h2><span class="opt">Yalnız tüm şartlarını sağladığın ve tabanını geçtiğin kadrolar listelenir</span></div>
+    <form class="quick-form" id="quick-form" autocomplete="off">
+      <div class="field"><label for="qs-level">Düzey</label><select id="qs-level"><option value="lisans">Lisans (KPSSP3)</option><option value="onlisans">Ön Lisans (KPSSP93)</option><option value="ortaogretim">Ortaöğretim (KPSSP94)</option></select></div>
+      <div class="field"><label for="qs-score">Puanın</label><input id="qs-score" type="text" inputmode="decimal" placeholder="örn. 81,73954"></div>
+      <div class="field"><label for="qs-rank">Başarı sıran <span class="opt">isteğe bağlı</span></label><input id="qs-rank" type="text" inputmode="numeric" placeholder="örn. 53.748"></div>
+      <div class="field"><label for="qs-bolum">Bölümün</label><input id="qs-bolum" type="search" placeholder="örn. Hemşirelik, İşletme"></div>
+      <div class="field"><label for="qs-kod">Nitelik kodların <span class="opt">isteğe bağlı</span></label><input id="qs-kod" type="text" inputmode="numeric" placeholder="örn. 4605, 6225, 6506"></div>
+      <div class="field"><span class="lbl" id="qs-year-lbl">Dönem</span>
+        <div class="seg" role="group" aria-labelledby="qs-year-lbl" id="qs-year">
+          <button type="button" data-y="2026" aria-pressed="true">2026<small>KPSS-2026/1</small></button>
+          <button type="button" data-y="past" aria-pressed="false">Geçmiş<small>2025 alımları</small></button>
+          <button type="button" data-y="all" aria-pressed="false">Tümü<small>2025–2026</small></button>
+        </div></div>
+    </form>
+    <p class="hint" id="qs-info"></p>
+    <div class="qs-list" id="qs-results"></div>
+    <div class="more-row"><button class="btn" type="button" id="qs-more" hidden>Daha fazla göster</button></div>
   </section>
 
   <div class="main-grid">
