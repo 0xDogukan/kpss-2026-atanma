@@ -685,7 +685,7 @@
       const key = placeKey(st.p);
       const conv = state.mode === 'rank' && st.lv.scoreYear !== CUR;
       return `<article class="card pl-card${state.sel === key ? ' sel' : ''}" data-sel="${esc(key)}" tabindex="0">
-        <div class="pl-top"><div><strong>${PFX}${esc(st.p.id)}</strong><span class="kind">${esc(st.p.kind)} · ${fDate(st.p.date)}</span></div><span class="badge">${st.lv.scoreYear} puanı</span></div>
+        <div class="pl-top"><div><strong>${PFX}${esc(st.p.id)}</strong><span class="kind">${esc(st.p.kind)}${contractOf(st.p) ? ' (4/B sözleşmeli)' : ''} · ${fDate(st.p.date)}</span></div><span class="badge">${st.lv.scoreYear} puanı</span></div>
         <dl class="pl-nums">
           <div><dt>Kadro</dt><dd>${fInt(st.filled)}${st.bos ? '<small>+' + fInt(st.bos) + ' boş kaldı</small>' : ''}</dd></div>
           <div><dt>En düşük taban</dt><dd>${fSc(st.min, 2)}${conv ? '<small>2026: ' + fSc(to2026(state.level, st.lv.scoreYear, st.min), 2) + '</small>' : ''}</dd></div>
@@ -1184,14 +1184,55 @@
     }
     return { all, zero };
   }
+  // Sağlık Bakanlığı KPSS alımları 4/B sözleşmeli pozisyondur
+  const contractOf = (p) => (p && p.kind === 'Sağlık Bakanlığı' ? '4/B sözleşmeli' : '');
+  // ---------------------------------------------------------------- tercih listem (yalnız bu tarayıcıda)
+  const TL_KEY = STORE_KEY + '-tercih', TL_MAX = 30;
+  let tercih = store.get(TL_KEY, []);
+  const tlIndex = (pid, kod) => tercih.findIndex((t) => t.pid === pid && t.kod === kod);
+  function favBtn(pid, kod) {
+    const on = tlIndex(pid, kod) >= 0;
+    return `<button type="button" class="fav" data-act="fav" data-pid="${esc(pid)}" data-kod="${esc(kod)}" aria-pressed="${on}" title="${on ? 'Tercih listemden çıkar' : 'Tercih listeme ekle'}" aria-label="${on ? 'Tercih listemden çıkar' : 'Tercih listeme ekle'}">${on ? '★' : '☆'}</button>`;
+  }
+  function toggleFav(pid, kod) {
+    const i = tlIndex(pid, kod);
+    if (i >= 0) tercih.splice(i, 1);
+    else if (tercih.length < TL_MAX) tercih.push({ pid, kod });
+    store.set(TL_KEY, tercih);
+    renderTercih();
+    renderQuick();
+    if (state.tab === 'liste') renderList();
+  }
+  function renderTercih() {
+    const sec = $('#tercih');
+    if (!sec) return;
+    sec.hidden = !tercih.length;
+    $('#tl-count').textContent = `(${tercih.length}/${TL_MAX})`;
+    const u = user();
+    $('#tl-list').innerHTML = tercih.map((t, i) => {
+      const p = P.find((x) => x.id === t.pid && !x.user);
+      const ri = p ? rowIndexFor(t.pid).get(t.kod) : null;
+      const r = ri != null ? R[ri] : null;
+      const thr = r && LEVELS[r[COL.level]] === state.level ? threshold(p, state.level, u) : null;
+      const info = r ? `<b>${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</b> <span class="muted">${esc(DICT.kurum[r[COL.kurum]])}${DICT.il[r[COL.il]] ? ' · ' + esc(trTitle(DICT.il[r[COL.il]])) : ''}</span>
+        <div class="small muted">${PFX}${esc(t.pid)}${contractOf(p) ? ' · ' + contractOf(p) : ''} · kod <span class="code">${esc(t.kod)}</span> · taban ${fSc(r[COL.min], 2)}${thr != null ? ` · senin karşılığın <b class="tnum">${fSc(thr, 2)}</b>` : ''}</div>`
+        : `<b>Kod ${esc(t.kod)}</b> <span class="small muted">${PFX}${esc(t.pid)}</span>`;
+      return `<li><div class="tl-main">${info}</div><div class="tl-btns">
+        <button type="button" class="btn" data-act="tl-up" data-i="${i}" aria-label="Yukarı taşı" ${i ? '' : 'disabled'}>↑</button>
+        <button type="button" class="btn" data-act="tl-down" data-i="${i}" aria-label="Aşağı taşı" ${i < tercih.length - 1 ? '' : 'disabled'}>↓</button>
+        <button type="button" class="btn" data-act="tl-del" data-i="${i}" aria-label="Listeden çıkar">✕</button></div></li>`;
+    }).join('');
+    $('#tl-note').textContent = tercih.length >= TL_MAX ? `ÖSYM'de en fazla ${TL_MAX} tercih yapılır; liste doldu.`
+      : 'Kodlar ÖSYM tercih ekranına bu sırayla girilir. Yeni yerleştirmenin (ör. KPSS-2026/2) kılavuzu çıkınca kadro kodları değişir; listeni yeni kodlarla kur.';
+  }
   function qsCard(it, mine, q) {
     const r = it.r, diff = it.thr - r[COL.min];
     const near = it.reach !== 'ok';
     return `<article class="qs-item${near ? ' near' : ''}">
-      <div class="qs-top"><span class="t">${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</span>
+      <div class="qs-top">${favBtn(it.pid, it.kod)}<span class="t">${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</span>
         <span class="margin ${near ? 'warn' : 'ok'}" title="O dönemin karşılığındaki puanın ile taban arasındaki fark">${near ? fSc(-diff, 2) + ' puan eksik' : diff < 0.005 ? 'Tabana eşit' : '+' + fSc(diff, 2) + ' puan'}</span></div>
       <span class="kurum">${esc(DICT.kurum[r[COL.kurum]])}</span>
-      <div class="qs-meta"><b>${esc(trTitle(DICT.il[r[COL.il]]))}</b><span>${r[COL.kont]} kontenjan</span><span>${PFX}${esc(it.pid)}</span><span class="code">${esc(it.kod)}</span></div>
+      <div class="qs-meta"><b>${esc(trTitle(DICT.il[r[COL.il]]))}</b><span>${r[COL.kont]} kontenjan</span><span>${PFX}${esc(it.pid)}</span>${contractOf(P.find((x) => x.id === it.pid && !x.user)) ? '<span class="tag">4/B sözleşmeli</span>' : ''}<span class="code">${esc(it.kod)}</span></div>
       <div class="qs-scores"><span>Taban <b class="tnum">${fSc(r[COL.min], 2)}</b></span><span>Senin karşılığın <b class="tnum hl">${fSc(it.thr, 2)}</b></span></div>
       ${reqChips(it.pid, it.kod, mine, q)}</article>`;
   }
@@ -1246,7 +1287,7 @@
   function fillPlaceSelect() {
     const opts = P.filter((p) => p.levels[state.level]).sort((a, b) => (a.date < b.date ? 1 : -1));
     if (!opts.find((p) => placeKey(p) === state.place)) state.place = opts.length ? placeKey(opts[0]) : null;
-    $('#in-place').innerHTML = opts.map((p) => `<option value="${esc(placeKey(p))}">${PFX}${esc(p.id)} · ${esc(p.kind)} · ${fDate(p.date)}${NIT[p.id] && !p.user ? ' · nitelikler var' : ''}</option>`).join('');
+    $('#in-place').innerHTML = opts.map((p) => `<option value="${esc(placeKey(p))}">${PFX}${esc(p.id)} · ${esc(p.kind)}${contractOf(p) ? ' (4/B sözleşmeli)' : ''} · ${fDate(p.date)}${NIT[p.id] && !p.user ? ' · nitelikler var' : ''}</option>`).join('');
     $('#in-place').value = state.place || '';
   }
   function openList(key) {
@@ -1288,7 +1329,7 @@
       let st = 'none';
       if (r[COL.min] != null && thr != null) st = thr >= r[COL.min] ? 'ok' : thr >= r[COL.min] - NEAR ? 'warn' : 'bad';
       const lbl = r[COL.min] == null ? 'Boş kaldı' : st === 'ok' ? 'Yeterdi' : st === 'warn' ? 'Sınırda' : st === 'bad' ? 'Yetmezdi' : '–';
-      h += `<tr><td data-label="Kadro"><b>${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</b><div class="code">${esc(r[COL.kod])}</div></td>
+      h += `<tr><td data-label="Kadro">${favBtn(p.id, r[COL.kod])} <b>${esc(trTitle(DICT.unvan[r[COL.unvan]]))}</b><div class="code">${esc(r[COL.kod])}</div></td>
         <td data-label="Kurum · il">${esc(DICT.kurum[r[COL.kurum]])}<div class="small muted">${esc(trTitle(DICT.il[r[COL.il]]))}</div></td>
         <td data-label="Kontenjan" class="r num">${r[COL.kont]}</td><td data-label="Taban" class="r num">${fSc(r[COL.min], 3)}</td><td data-label="Tavan" class="r num">${fSc(r[COL.max], 3)}</td>
         ${EK ? '' : `<td data-label="Taban sırası" class="r num">${r[COL.min] != null && m ? fInt(rankOn(m, r[COL.min])) : '–'}</td>`}
@@ -1597,7 +1638,7 @@
     else if (t === 'kadro2026') render2026();
     else if (t === 'yontem' && !EK) { renderModelTable(); renderVeri(); }
   }
-  function refreshAll() { syncInputs(); renderHasChips(); renderBolumHint(); renderGroupChips(); renderVerdict(user()); renderQuick(); renderTab(); }
+  function refreshAll() { syncInputs(); renderHasChips(); renderBolumHint(); renderGroupChips(); renderVerdict(user()); renderQuick(); renderTercih(); renderTab(); }
   // Boş durum ve kısayol düğmelerinin (data-act) işleri
   const ACTIONS = {
     'set-bolum': (b) => { state.bolum = b.dataset.val; state.bpage = 0; resetQuick(); save(); refreshAll(); },
@@ -1606,6 +1647,23 @@
     'focus-group': () => focusField('#in-group'),
     'qs-all': () => { state.qyear = 'all'; resetQuick(); save(); renderQuick(); },
     'qs-near': () => { qsNear = !qsNear; qsLimit = 0; renderQuick(); },
+    fav: (b) => toggleFav(b.dataset.pid, b.dataset.kod),
+    'tl-del': (b) => { tercih.splice(+b.dataset.i, 1); store.set(TL_KEY, tercih); renderTercih(); renderQuick(); if (state.tab === 'liste') renderList(); },
+    'tl-up': (b) => { const i = +b.dataset.i; if (i > 0) { [tercih[i - 1], tercih[i]] = [tercih[i], tercih[i - 1]]; store.set(TL_KEY, tercih); renderTercih(); } },
+    'tl-down': (b) => { const i = +b.dataset.i; if (i < tercih.length - 1) { [tercih[i + 1], tercih[i]] = [tercih[i], tercih[i + 1]]; store.set(TL_KEY, tercih); renderTercih(); } },
+    'tl-clear': (b) => {
+      if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Emin misin? Tekrar bas'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Temizle'; }, 3000); return; }
+      tercih = []; store.set(TL_KEY, tercih); b.dataset.sure = ''; b.textContent = 'Temizle'; renderTercih(); renderQuick(); if (state.tab === 'liste') renderList();
+    },
+    'tl-copy': async (b) => {
+      const txt = tercih.map((t) => t.kod).join('\n');
+      try { await navigator.clipboard.writeText(txt); b.textContent = 'Kopyalandı ✓'; } catch (e) {
+        const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); b.textContent = 'Kopyalandı ✓'; } catch (e2) { b.textContent = 'Kopyalanamadı'; }
+        ta.remove();
+      }
+      setTimeout(() => { b.textContent = 'Kodları kopyala'; }, 2000);
+    },
     'go-nitelik': () => { state.nstrict = false; state.bpage = 0; selectTab('nitelik'); goTo($('#nitelik')); },
     'clear-il': () => { state.il = ''; elIl.value = ''; save(); refreshAll(); },
     'clear-kind': () => { state.kind = ''; fillKinds(); save(); refreshAll(); },

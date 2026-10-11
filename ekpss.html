@@ -46,7 +46,7 @@
       <ul class="trust" id="trust">
         <li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="trust-data">EKPSS yerleştirme sonuçları</span></li>
         <li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>ÖSYM özetleriyle birebir doğrulandı</li>
-        <li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Ücretsiz · kayıt yok · veri toplamaz</li>
+        <li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Tamamen ücretsiz · ücretli paket yok · kayıt yok</li>
       </ul>
     </div>
     <svg class="optik" viewBox="0 0 236 206" aria-hidden="true">
@@ -126,6 +126,17 @@
       <div id="qs-summary"></div>
       <div class="qs-list" id="qs-results"></div>
       <div class="more-row"><button class="btn" type="button" id="qs-more" hidden>Daha fazla göster</button></div>
+    </section>
+
+    <!-- TERCİH LİSTEM -->
+    <section class="card tercih" id="tercih" aria-labelledby="tl-title" hidden>
+      <div class="block-head">
+        <span class="step" aria-hidden="true">★</span>
+        <div class="bh-text"><h2 id="tl-title">Tercih listem <span id="tl-count" class="muted"></span></h2><p class="sub">Kadro kartlarındaki ☆ ile ekle, sırala, kodları kopyala. Yalnız bu tarayıcıda saklanır.</p></div>
+        <div class="tl-acts"><button type="button" class="btn btn-primary" data-act="tl-copy">Kodları kopyala</button><button type="button" class="btn" data-act="tl-clear">Temizle</button></div>
+      </div>
+      <ol class="tl-list" id="tl-list"></ol>
+      <p class="hint" id="tl-note"></p>
     </section>
 
     <!-- 3 · KADRONDA DURUMUN -->

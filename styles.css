@@ -520,3 +520,18 @@ td a { color: var(--brand-text); }
 .calc legend { font-family: var(--f-display); font-weight: 700; padding: 0 6px; }
 .calc label { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 0.9rem; flex: 1; min-width: 0; }
 #calc-out { margin-top: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+
+/* Tercih listem */
+.fav { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--bg-2); color: var(--muted); font-size: 1.05rem; line-height: 1; cursor: pointer; display: inline-grid; place-items: center; vertical-align: middle; }
+.fav:hover { border-color: var(--mark); color: var(--mark); }
+.fav[aria-pressed="true"] { background: linear-gradient(180deg, #FFDD8A, var(--mark)); border-color: var(--mark); color: var(--mark-ink); box-shadow: 0 3px 0 var(--mark-dim); }
+.qs-top { align-items: center; }
+.qs-top .t { flex: 1; }
+.tercih { padding: clamp(18px, 2.6vw, 26px); display: flex; flex-direction: column; gap: 14px; border-color: var(--game-line); }
+.tl-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.tl-list { margin: 0; padding-left: 28px; display: flex; flex-direction: column; gap: 8px; }
+.tl-list li { padding: 10px 12px; border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--line); display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.tl-list li::marker { font-family: var(--f-display); font-weight: 800; color: var(--mark); }
+.tl-main { min-width: 0; flex: 1 1 16rem; }
+.tl-btns { display: flex; gap: 6px; }
+.tl-btns .btn { min-height: 36px; padding: 4px 12px; }
