@@ -489,3 +489,27 @@ footer { border-top-color: var(--line); }
 .brand em { font-style: normal; color: var(--mark); }
 .qs-scores { flex-wrap: wrap; }
 .qs-scores span { white-space: nowrap; }
+
+/* Arama motoru sayfaları (taban puanları, nitelik kodları) */
+.seo .flow { margin-top: 8px; }
+.crumbs { font-size: 0.86rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--brand-text); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+.seo-hero { display: flex; flex-direction: column; gap: 12px; padding: clamp(22px, 4vw, 40px); border-radius: 28px; color: #fff;
+  background: radial-gradient(90% 120% at 100% 0%, var(--hero-glow), transparent 60%), linear-gradient(180deg, var(--hero-2), var(--brand) 55%, var(--hero-1));
+  box-shadow: 0 8px 0 var(--brand-dim), 0 24px 44px rgba(10, 6, 26, 0.55); }
+.seo-hero h1 { font-size: clamp(1.8rem, 1.2rem + 2.4vw, 2.8rem); line-height: 1.08; text-shadow: 0 3px 4px rgba(20, 14, 46, 0.35); }
+.seo-hero .lead { color: var(--hero-muted); max-width: 70ch; font-size: 1.05rem; }
+.seo-hero .lead b { color: #fff; }
+.seo-hero .muted { color: var(--hero-muted); }
+.seo-hero .btn-primary { background: linear-gradient(180deg, #FFDD8A, var(--mark)); color: var(--mark-ink); box-shadow: 0 5px 0 var(--mark-dim); align-self: flex-start; }
+.seo-hero .chip { background: var(--hero-chip); color: #fff; border-color: var(--hero-line); text-decoration: none; }
+.seo-hero code { background: var(--hero-chip); padding: 1px 6px; border-radius: 6px; }
+a.chip { text-decoration: none; display: inline-block; }
+.faq details { border-top: 1px solid var(--line); padding: 10px 0; }
+.faq details:first-of-type { border-top: 0; }
+.faq summary { cursor: pointer; font-family: var(--f-display); font-weight: 700; font-size: 1.05rem; }
+.faq details p { margin-top: 6px; color: var(--muted); max-width: 75ch; }
+.seo-links .chips { margin-top: 8px; }
+tr[id]:target td { background: var(--mark-soft); }
+td a { color: var(--brand-text); }

@@ -1617,7 +1617,20 @@
   let timer = null;
   function soon(fn = refreshAll, ms = 140) { clearTimeout(timer); timer = setTimeout(() => { save(); fn(); }, ms); }
 
+  // Paylaşılan ya da taban puanı sayfalarından gelen bağlantılar formu doldurur: ?duzey=lisans&kadro=HEMŞİRE&bolum=...&puan=...
+  function applyUrlParams() {
+    let qp;
+    try { qp = new URLSearchParams(location.search); } catch (e) { return; }
+    const lvl = qp.get('duzey'), grp = qp.get('kadro'), bolum = qp.get('bolum'), puan = qp.get('puan');
+    if (lvl && LV[lvl]) { state.level = lvl; state.sel = null; state.place = null; state.K = null; }
+    if (grp) { state.group = up(grp); state.K = null; state.sel = null; }
+    if (bolum != null) state.bolum = bolum;
+    if (puan) { state.score = puan; state.example = false; }
+    if (lvl || grp || bolum || puan) save();
+  }
+
   function init() {
+    applyUrlParams();
     if (!EK) loadUploads(); // kullanıcı yüklemeleri KPSS verisine aittir
     fillKinds(); fillIl(); fillGroups(); syncSegs();
     elScore.value = state.score || '';
