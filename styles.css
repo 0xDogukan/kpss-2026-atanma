@@ -401,3 +401,11 @@ footer { margin-top: 44px; font-size: 0.84rem; color: var(--muted); border-top: 
 /* EKPSS formunda başarı sırası alanı yok */
 .search-form.no-rank { grid-template-areas: "lvl bolum" "score kod" "go go"; }
 @media (max-width: 760px) { .search-form.no-rank { grid-template-areas: "lvl" "score" "bolum" "kod" "go"; } }
+
+/* Puanın yetmediğinde: kılavuz kılavuz ne kadar eksik olduğu */
+.gap-list { margin: 2px 0 0; padding-left: 20px; text-align: left; max-width: 62ch; display: flex; flex-direction: column; gap: 4px; font-size: 0.92rem; color: var(--ink); }
+.qs-sum .gap-list { flex-basis: 100%; color: var(--muted); }
+.qs-closest { font-family: var(--f-display); font-weight: 700; margin-top: 4px; }
+
+.by { font-size: 0.82rem; font-weight: 600; color: var(--muted); text-decoration: none; }
+.by:hover { color: var(--brand-text); text-decoration: underline; }

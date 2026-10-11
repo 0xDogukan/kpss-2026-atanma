@@ -103,10 +103,10 @@
     info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
   };
   // Sonuç olmayan her yerde aynı büyük kutu: başlık, açıklama (HTML) ve data-act ile çalışan öneri düğmeleri.
-  function emptyHTML({ icon = 'search', tone = '', title, text = '', actions = [], compact = false, flat = false }) {
+  function emptyHTML({ icon = 'search', tone = '', title, text = '', extra = '', actions = [], compact = false, flat = false }) {
     const cls = ['empty', tone, compact ? 'compact' : '', flat ? 'flat' : ''].filter(Boolean).join(' ');
     return `<div class="${cls}" role="status"><span class="empty-ico" aria-hidden="true">${ICON[icon]}</span>
-      <p class="empty-title">${esc(title)}</p>${text ? `<p class="empty-text">${text}</p>` : ''}
+      <p class="empty-title">${esc(title)}</p>${text ? `<p class="empty-text">${text}</p>` : ''}${extra}
       ${actions.length ? `<div class="empty-acts">${actions.map(([label, act, primary, val]) =>
         `<button type="button" class="btn${primary ? ' btn-primary' : ''}" data-act="${act}"${val ? ` data-val="${esc(val)}"` : ''}>${esc(label)}</button>`).join('')}</div>` : ''}</div>`;
   }
@@ -372,29 +372,34 @@
     const key = [state.level, q, typed.join(','), (state.nhas || []).join(','), R.length].join('|');
     if (chipMemo.key === key) return chipMemo.val;
     const cnt = new Map();
-    if (NIT_PIDS.length && (q.length >= 3 || typed.some(isEduCode))) {
+    // bölüm yazılmadıysa findKadros yalnız "herhangi bir bölümden mezun olmak" isteyen kadroları döndürür
+    if (NIT_PIDS.length) {
       for (const it of findKadros(NIT_PIDS, q, typed, { score: null })) {
         if (it.r && !it.missing.length) cnt.set(it.r[COL.grup], (cnt.get(it.r[COL.grup]) || 0) + it.r[COL.kont]);
       }
     }
-    const fromBolum = cnt.size > 0;
-    if (!fromBolum) {
+    const mode = !cnt.size ? 'all' : q.length >= 3 || typed.some(isEduCode) ? 'bolum' : 'genel';
+    if (mode === 'all') {
       const L = LEVELS.indexOf(state.level);
       for (const r of R) if (r[COL.level] === L) cnt.set(r[COL.grup], (cnt.get(r[COL.grup]) || 0) + r[COL.kont]);
     }
     chipMemo.key = key;
-    chipMemo.val = { fromBolum, groups: [...cnt.entries()].sort((a, b) => b[1] - a[1]).map(([gi]) => DICT.grup[gi]) };
+    chipMemo.val = { mode, groups: [...cnt.entries()].sort((a, b) => b[1] - a[1]).map(([gi]) => DICT.grup[gi]) };
     return chipMemo.val;
   }
   function renderGroupChips() {
-    const { fromBolum, groups } = groupChipList();
-    $('#group-chips').innerHTML = `<span class="chips-lbl">${fromBolum ? 'Bölümüne uygun:' : 'Sık seçilenler:'}</span>` + groups.slice(0, 6).map((g) =>
+    const { mode, groups } = groupChipList();
+    const lbl = { bolum: 'Bölümüne uygun:', genel: 'Her bölüme açık:', all: 'Sık seçilenler:' }[mode];
+    $('#group-chips').innerHTML = `<span class="chips-lbl">${lbl}</span>` + groups.slice(0, 6).map((g) =>
       `<button type="button" class="chip" data-group="${esc(g)}" aria-pressed="${g === state.group}">${esc(groupLabel(g))}</button>`).join('');
-    const off = fromBolum && !!state.group && !groups.includes(state.group);
+    const off = mode !== 'all' && !!state.group && !groups.includes(state.group);
     const warn = $('#v-warn');
+    const pick = groups.slice(0, 3).map((g) => `<button type="button" class="btn-link" data-group="${esc(g)}">${esc(groupLabel(g))}</button>`).join(', ');
     warn.hidden = !off;
-    warn.innerHTML = off ? `<b>${esc(groupLabel(state.group))}</b> kadroları bölümünle eşleşmiyor. Bölümüne uygun bir kadro seç: ${groups.slice(0, 3).map((g) =>
-      `<button type="button" class="btn-link" data-group="${esc(g)}">${esc(groupLabel(g))}</button>`).join(', ')}.` : '';
+    warn.innerHTML = !off ? '' : mode === 'bolum'
+      ? `<b>${esc(groupLabel(state.group))}</b> kadroları bölümünle eşleşmiyor. Bölümüne uygun bir kadro seç: ${pick}.`
+      : `<b>${esc(groupLabel(state.group))}</b> kadroları belirli bölümlerden mezun ister; bölümünü yazmadığın için başvurabileceğini varsayamayız. `
+        + `<button type="button" class="btn-link" data-act="focus-bolum">Bölümünü yaz</button> ya da her bölüme açık bir kadro seç: ${pick}.`;
   }
   function fillIl() {
     const iller = DICT.il.filter((x) => x).slice().sort((a, b) => a.localeCompare(b, 'tr'));
@@ -941,7 +946,7 @@
     const q = up(state.bolum).trim(), typed = typedCodes();
     el.className = 'hint';
     if (q.length < 3 && !typed.some(isEduCode)) {
-      el.textContent = q ? 'En az 3 harf yaz.' : 'Bölüm adını tercih kılavuzundaki mezuniyet kodlarıyla eşleştiririz.';
+      el.textContent = q ? 'En az 3 harf yaz.' : 'Boş bırakırsan yalnız her bölümden mezunların başvurabildiği kadrolar (ör. memur) gösterilir.';
       return;
     }
     const m = [...eduMatches(q, typed).entries()];
@@ -1099,9 +1104,7 @@
   const resetQuick = () => { qsLimit = 0; qsNear = false; };
   // Hızlı arama için eksik zorunlu bilgi: puan ya da bölüm/mezuniyet kodu.
   function quickNeed() {
-    if (user().score == null) return '#in-score';
-    if (up(state.bolum).trim().length < 3 && !typedCodes().some(isEduCode)) return '#in-bolum';
-    return null;
+    return user().score == null ? '#in-score' : null;
   }
   const QS_WHERE = EK ? { all: '2025–2026 EKPSS yerleştirmelerinde', 2026: '2026-EKPSS yerleştirmesinde', past: '2025-EKPSS yerleştirmesinde' }
     : { all: '2025–2026 alımlarında', 2026: 'KPSS-2026/1 alımında', past: '2025 alımlarında' };
@@ -1115,10 +1118,6 @@
       return show(emptyHTML({ icon: 'edit', title: 'Önce puanını yaz', actions: [['Puanını yaz', 'focus-score', true]],
         text: `Yukarıdaki <b>Bilgilerin</b> bölümüne ${EK ? 'EKPSS' : '2026 KPSS'} puanını ve mezun olduğun bölümü yaz; girebileceğin kadrolar burada listelenir.` }));
     }
-    if (need === '#in-bolum') {
-      return show(emptyHTML({ icon: 'edit', title: 'Bölümünü yaz', actions: [['Bölümünü yaz', 'focus-bolum', true]],
-        text: 'Kadroların çoğu belirli bölümlerden mezun ister. Bölümünü (ör. <b>Hemşirelik</b>, <b>İşletme</b>) ya da mezuniyet nitelik kodunu (ör. <b>4605</b>) yaz.' }));
-    }
     const u = user();
     const q = up(state.bolum).trim(), typed = typedCodes();
     const pids = NIT_PIDS.filter((pid) => state.qyear === 'all' || (state.qyear === '2026' ? pid.startsWith('2026') : !pid.startsWith('2026')));
@@ -1127,7 +1126,9 @@
     const ok = items.filter((it) => !it.missing.length && it.reach === 'ok').sort(byTaban);
     const near = items.filter((it) => !it.missing.length && it.reach === 'warn').sort(byTaban);
     const miss = items.filter((it) => it.missing.length && it.reach === 'ok').length;
-    const noMatch = !eduMatches(q, typed).size;
+    const hasBolum = q.length >= 3 || typed.some(isEduCode);
+    const noMatch = hasBolum && !eduMatches(q, typed).size;
+    const gaps = gapLines(items, pids, hasBolum);
     const where = QS_WHERE[state.qyear] || QS_WHERE.all;
     if (!ok.length && !(qsNear && near.length)) {
       const acts = [];
@@ -1137,10 +1138,16 @@
       const sug = noMatch && q.length >= 3 ? suggestBolum(q) : [];
       if (sug.length) acts.unshift([`“${sug[0]}” ile ara`, 'set-bolum', true, sug[0]]);
       if (noMatch) acts.push(['Bölüm adını düzelt', 'focus-bolum', !acts.length]);
-      return show(emptyHTML({ title: 'Sonuç yok', actions: acts,
-        text: `${esc(where)} bu bilgilerle tabanını geçtiğin ve tüm şartlarını sağladığın kadro bulunamadı.`
+      if (!hasBolum) acts.push(['Bölümünü yaz', 'focus-bolum', !acts.length]);
+      // puanın yetmediği ama tabanına en yakın kadrolar: ne kadar eksik olduğunu göster
+      const closest = items.filter((it) => !it.missing.length && it.reach !== 'ok' && it.r && it.r[COL.min] != null && it.thr != null)
+        .sort((a, b) => (a.r[COL.min] - a.thr) - (b.r[COL.min] - b.thr)).slice(0, 4);
+      return show(emptyHTML({ title: 'Puanın yetmedi', actions: acts, extra: `<ul class="gap-list">${gaps.all}</ul>`,
+        text: `${esc(where)} ${hasBolum ? 'bölümünle' : 'her bölüme açık kadrolarda'} tabanını geçtiğin ve tüm şartlarını sağladığın kadro yok.`
           + (noMatch ? ` <b>“${esc(String(state.bolum).trim())}”</b> adında bir bölüm bulamadık; yazımı kontrol et.` : '')
-          + (acts.length ? ' Şunları deneyebilirsin:' : ' Puanını ya da bölümünü değiştirip yeniden dene.') }));
+          + ' Ne kadar eksik olduğun:' })
+        + (closest.length ? '<p class="qs-closest">Tabanına en yakın kadrolar:</p>' : ''),
+        closest.map((it) => qsCard(it, new Set(eduMatches(q, typed).keys()), q)).join(''));
     }
     const extras = [];
     if (near.length) extras.push(`<button type="button" class="chip" data-act="qs-near" aria-pressed="${qsNear}">${qsNear ? 'Sınırda kalanları gizle' : `+ Sınırda kalan ${fInt(near.length)} kadro`}</button>`);
@@ -1149,6 +1156,8 @@
         <p class="qs-count"><b>${fInt(ok.length)}</b><span>kadroya girebilirdin${ok.length ? '' : ` · sınırda kalan ${fInt(near.length)} kadro aşağıda`}</span></p>
         ${extras.length ? `<div class="qs-extra">${extras.join('')}</div>` : ''}
         <p class="qs-note">${esc(where)}, ${state.mode === 'rank' ? 'sıralamana' : 'puanına'} göre; en yüksek tabandan başlayarak. Tabanlar o dönemin sonuçlarıdır, yeni alımlarda değişebilir.${noMatch ? ' <b>Bölüm adın eşleşmedi; yalnız her bölüme açık kadrolar listelendi.</b>' : ''}${state.example ? ' <b>Örnek puan kullanılıyor; kendi puanını yaz.</b>' : ''}</p>
+        ${!hasBolum ? '<p class="qs-note"><b>Bölüm yazmadığın için yalnız her bölümden mezunların başvurabildiği kadrolar (ör. memur) gösteriliyor.</b> <button type="button" class="btn-link" data-act="focus-bolum">Bölümünü yaz</button>, bölümüne özel kadrolar da eklensin.</p>' : ''}
+        ${gaps.zero ? `<ul class="gap-list qs-note">${gaps.zero}</ul>` : ''}
       </div>`;
     const list = qsNear ? ok.concat(near) : ok;
     const lim = qsLimit || qsFirst();
@@ -1156,6 +1165,24 @@
     box.innerHTML = list.slice(0, lim).map((it) => qsCard(it, mine, q)).join('');
     more.hidden = list.length <= lim;
     if (!more.hidden) more.textContent = `Daha fazla göster (${fInt(list.length - lim)} kadro daha)`;
+  }
+  // Her kılavuz için: şartlarını sağladığın kadroların en düşük tabanı ve senin o yılın puanıyla karşılığın arasındaki fark.
+  // all: tüm satırlar; zero: yalnız puanın hiçbir kadroya yetmediği kılavuzlar (sonuç varken uyarı olarak)
+  function gapLines(items, pids, hasBolum) {
+    const who = hasBolum ? 'bölümünün başvurabildiği' : 'her bölüme açık';
+    let all = '', zero = '';
+    for (const pid of pids) {
+      const el = items.filter((it) => it.pid === pid && !it.missing.length && it.r && it.r[COL.min] != null && it.thr != null);
+      const name = `<b>${esc(PFX + pid)}</b>`;
+      if (!el.length) { all += `<li>${name}: ${who} ve şartlarını sağladığın kadro yoktu.</li>`; continue; }
+      const okN = el.filter((it) => it.reach === 'ok').length;
+      if (okN) { all += `<li>${name}: ${who} ${fInt(el.length)} kadronun ${fInt(okN)} tanesine puanın yetti.</li>`; continue; }
+      const low = el.reduce((a, b) => (b.r[COL.min] < a.r[COL.min] ? b : a));
+      const line = `<li>${name}: ${who} ${fInt(el.length)} kadronun en düşük tabanı <b>${fSc(low.r[COL.min], 2)}</b>, senin karşılığın ${fSc(low.thr, 2)}: <b>${fSc(low.r[COL.min] - low.thr, 2)} puan eksik</b>.</li>`;
+      all += line;
+      zero += line;
+    }
+    return { all, zero };
   }
   function qsCard(it, mine, q) {
     const r = it.r, diff = it.thr - r[COL.min];
