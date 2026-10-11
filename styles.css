@@ -3,55 +3,35 @@
 /* Yerleşim: üç adımlı akış — solda "Bilgilerin" kartı, sağda büyük "Sonucun" kartı (gösterge + kadro sayısı kaydırıcısı),
    altta sekmeli "Ayrıntılı inceleme". Senin konumun her yerde fosforlu sarıyla işaretlenir. */
 :root {
-  --bg: #F2F5FA;
-  --surface: #FFFFFF;
-  --surface-2: #F7F9FC;
-  --ink: #0F1B33;
-  --muted: #5A6A81;
-  --line: #E0E6EF;
-  --brand: #2557D6;
+  /* Kelime Türet paleti (kelimeturet.com style.css ile aynı) — site bilinçli olarak tek, koyu mor temadadır */
+  --bg: #150F28; --bg-2: #1E1638;
+  --surface: #251C43;
+  --surface-2: #2C2250;
+  --surface-3: #342961;
+  --ink: #F5F3FF;
+  --muted: #ABA1D6;
+  --faint: #746A9C;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --brand: #6C5CE7; --brand-light: #8B7FF0; --brand-dim: #4B3FA8;
   --brand-ink: #FFFFFF;
-  --brand-soft: #E7EEFD;
-  --brand-text: #1D47B3;
-  --mark: #FFC83D;
-  --mark-soft: rgba(255, 200, 61, 0.32);
-  --ok: #138A5B; --ok-bg: #E2F5EC; --ok-line: #A9DEC6;
-  --warn: #B86A00; --warn-bg: #FFF2DB; --warn-line: #F6D39A;
-  --bad: #C93A30; --bad-bg: #FCE7E5; --bad-line: #F2B9B3;
-  --none: #8592A6;
-  --game: #6C5CE7; --game-on: #FFFFFF; --game-soft: #F1EFFE; --game-line: #DCD6FC; --game-text: #4A3DB8;
-  --hero-1: #1B3FB4; --hero-2: #2E68F2; --hero-glow: rgba(255, 200, 61, 0.30);
-  --hero-ink: #FFFFFF; --hero-muted: rgba(255, 255, 255, 0.84); --hero-chip: rgba(255, 255, 255, 0.12); --hero-line: rgba(255, 255, 255, 0.3); --hero-shadow: rgba(8, 18, 52, 0.35);
-  --shadow-sm: 0 1px 2px rgba(15, 27, 51, 0.05);
-  --shadow: 0 1px 2px rgba(15, 27, 51, 0.05), 0 10px 30px -12px rgba(15, 27, 51, 0.16);
-  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
-  --f-code: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --r-lg: 18px; --r: 12px; --r-sm: 8px;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0B1220; --surface: #121B2E; --surface-2: #17223A; --ink: #E7EDF7; --muted: #9AA9C0; --line: #24324D;
-    --brand: #6E9BFF; --brand-ink: #081226; --brand-soft: #1A2A4D; --brand-text: #A9C3FF;
-    --mark: #FFD25C; --mark-soft: rgba(255, 210, 92, 0.22);
-    --ok: #4FD198; --ok-bg: #11301F; --ok-line: #1E5A3D; --warn: #F5B451; --warn-bg: #33250C; --warn-line: #6B4A12;
-    --bad: #FF8A80; --bad-bg: #3A1A18; --bad-line: #6E2B26; --none: #6F7F98;
-    --game: #8D7FF7; --game-on: #120E2E; --game-soft: #1C1838; --game-line: #3A3370; --game-text: #C9C2FF;
-    --hero-1: #0F1F4D; --hero-2: #1A3A8E; --hero-glow: rgba(255, 210, 92, 0.16);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35); --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 14px 34px -14px rgba(0, 0, 0, 0.6);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0B1220; --surface: #121B2E; --surface-2: #17223A; --ink: #E7EDF7; --muted: #9AA9C0; --line: #24324D;
-  --brand: #6E9BFF; --brand-ink: #081226; --brand-soft: #1A2A4D; --brand-text: #A9C3FF;
-  --mark: #FFD25C; --mark-soft: rgba(255, 210, 92, 0.22);
-  --ok: #4FD198; --ok-bg: #11301F; --ok-line: #1E5A3D; --warn: #F5B451; --warn-bg: #33250C; --warn-line: #6B4A12;
-  --bad: #FF8A80; --bad-bg: #3A1A18; --bad-line: #6E2B26; --none: #6F7F98;
-  --game: #8D7FF7; --game-on: #120E2E; --game-soft: #1C1838; --game-line: #3A3370; --game-text: #C9C2FF;
-    --hero-1: #0F1F4D; --hero-2: #1A3A8E; --hero-glow: rgba(255, 210, 92, 0.16);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35); --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 14px 34px -14px rgba(0, 0, 0, 0.6);
+  --brand-soft: rgba(139, 127, 240, 0.18);
+  --brand-text: #C2B9FF;
+  --mark: #FFC857; --mark-dim: #C99321; --mark-ink: #2A1B00;
+  --mark-soft: rgba(255, 200, 87, 0.24);
+  --ok: #3FDDBF; --ok-bg: rgba(63, 221, 191, 0.12); --ok-line: rgba(63, 221, 191, 0.38);
+  --warn: #FFC857; --warn-bg: rgba(255, 200, 87, 0.12); --warn-line: rgba(255, 200, 87, 0.4);
+  --bad: #FF6B6B; --bad-bg: rgba(255, 107, 107, 0.12); --bad-line: rgba(255, 107, 107, 0.4);
+  --none: #746A9C;
+  --game: #FFC857; --game-on: #2A1B00; --game-soft: #342961; --game-line: rgba(255, 200, 87, 0.35); --game-text: #FFC857;
+  --hero-1: #4B3FA8; --hero-2: #8B7FF0; --hero-glow: rgba(255, 200, 87, 0.28);
+  --hero-ink: #FFFFFF; --hero-muted: rgba(255, 255, 255, 0.86); --hero-chip: rgba(21, 15, 40, 0.28); --hero-line: rgba(255, 255, 255, 0.26); --hero-shadow: rgba(10, 6, 26, 0.5);
+  --shadow-sm: 0 2px 0 rgba(10, 6, 26, 0.35);
+  --shadow: 0 6px 0 rgba(10, 6, 26, 0.32), 0 18px 34px rgba(10, 6, 26, 0.45);
+  --f-display: "Baloo 2", system-ui, sans-serif;
+  --f-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-code: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r-lg: 24px; --r: 16px; --r-sm: 10px;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -409,3 +389,103 @@ footer { margin-top: 44px; font-size: 0.84rem; color: var(--muted); border-top: 
 
 .by { font-size: 0.82rem; font-weight: 600; color: var(--muted); text-decoration: none; }
 .by:hover { color: var(--brand-text); text-decoration: underline; }
+
+/* ===================== Kelime Türet görünümü ===================== */
+body { background: radial-gradient(ellipse 120% 70% at 50% -10%, #2A2050 0%, var(--bg) 55%) fixed, var(--bg); font-weight: 600; }
+h1, h2, h3 { letter-spacing: 0; font-weight: 800; }
+p, li, td { font-weight: 600; }
+.muted, .hint, .small { font-weight: 600; }
+a { color: var(--brand-text); }
+
+/* Logo: "KPSS Atanma" beyaz, "Tahmini" kehribar — oyunun "Kelime Türet" logosu gibi */
+.brand { font-weight: 800; font-size: 1.2rem; }
+.brand span { color: var(--ink); }
+.brand small { background: var(--mark); color: var(--mark-ink); font-weight: 800; }
+.brand svg rect { fill: var(--brand); }
+
+/* Giriş şeridi: oyundaki mor degrade logo şeridi, alttan koyu "kalınlık" */
+.hero { background: radial-gradient(90% 120% at 100% 0%, var(--hero-glow), transparent 60%), linear-gradient(180deg, var(--hero-2), var(--brand) 55%, var(--hero-1));
+  box-shadow: 0 8px 0 var(--brand-dim), 0 24px 44px rgba(10, 6, 26, 0.55); border-radius: 28px; }
+.hero h1 { text-shadow: 0 3px 4px rgba(20, 14, 46, 0.35); }
+.trust li { font-weight: 700; }
+
+/* Kartlar */
+.card { border: 1px solid var(--line); box-shadow: var(--shadow); }
+.search { box-shadow: 0 8px 0 rgba(10, 6, 26, 0.4), 0 26px 50px rgba(10, 6, 26, 0.55); }
+.step { border-radius: 12px; background: linear-gradient(180deg, #FFDD8A, var(--mark)); color: var(--mark-ink); box-shadow: 0 4px 0 var(--mark-dim); transform: rotate(-4deg); font-size: 1.1rem; }
+
+/* Düğmeler: hap biçimi, alttan gölge, basınca çökme */
+.btn { border-radius: 999px; font-family: var(--f-display); font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+  box-shadow: 0 4px 0 var(--surface-3); transition: transform 0.15s, box-shadow 0.15s, filter 0.15s; }
+.btn:hover { border-color: var(--line-strong); filter: brightness(1.08); }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--surface-3); }
+.btn-primary { background: linear-gradient(180deg, var(--brand-light), var(--brand)); border: 0; color: #fff; box-shadow: 0 5px 0 var(--brand-dim), 0 14px 26px rgba(108, 92, 231, 0.4); }
+.btn-primary:active { box-shadow: 0 2px 0 var(--brand-dim), 0 6px 14px rgba(108, 92, 231, 0.3); }
+#qs-go { background: linear-gradient(180deg, #FFDD8A, var(--mark)); color: var(--mark-ink); box-shadow: 0 5px 0 var(--mark-dim), 0 14px 26px rgba(255, 200, 87, 0.35); }
+#qs-go:active { box-shadow: 0 2px 0 var(--mark-dim), 0 6px 14px rgba(255, 200, 87, 0.25); }
+.btn:disabled { box-shadow: none; }
+.btn-link { color: var(--mark); }
+
+/* Girişler: koyu, içe gölgeli hap; odakta kehribar halka */
+input[type="text"], input[type="search"], select { background: var(--bg-2); border: 2px solid var(--line); border-radius: 999px; padding: 12px 18px;
+  font-weight: 700; box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.25); }
+input::placeholder { color: var(--faint); font-weight: 600; }
+input[type="text"]:hover, input[type="search"]:hover, select:hover { border-color: var(--line-strong); }
+input[type="text"]:focus, input[type="search"]:focus, select:focus { border-color: var(--mark); background: var(--surface);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 0 4px rgba(255, 200, 87, 0.18); }
+select { padding-right: 36px; }
+.input-xl { font-family: var(--f-display) !important; font-weight: 800; }
+
+/* Seçim grupları ve çipler */
+.seg { background: var(--bg-2); border: 2px solid var(--line); border-radius: 18px; }
+.seg button { border-radius: 12px; font-family: var(--f-display); font-weight: 700; color: var(--muted); }
+.seg button:hover { background: var(--surface-2); color: var(--ink); }
+.seg button[aria-pressed="true"] { background: linear-gradient(180deg, var(--brand-light), var(--brand)); color: #fff; box-shadow: 0 3px 0 var(--brand-dim); }
+.chip { background: var(--surface); border: 2px solid var(--line); color: var(--muted); font-weight: 800; }
+.chip:hover { border-color: var(--line-strong); color: var(--ink); }
+.chip[aria-pressed="true"] { border-color: var(--ok); color: var(--ink); background: var(--surface-2); box-shadow: 0 0 0 1px var(--ok) inset; }
+.tag { background: var(--brand-soft); color: var(--brand-text); }
+.exam-switch { background: var(--bg-2); border: 2px solid var(--line); box-shadow: none; }
+.exam-switch a[aria-current="page"] { background: linear-gradient(180deg, var(--brand-light), var(--brand)); box-shadow: 0 3px 0 var(--brand-dim); }
+.updated::before { box-shadow: 0 0 0 3px var(--ok-bg); }
+
+/* Sekmeler */
+.tabs { background: var(--bg-2); border: 2px solid var(--line); box-shadow: 0 4px 0 rgba(10, 6, 26, 0.35); }
+.tabs button { font-family: var(--f-display); }
+.tabs button[aria-selected="true"] { background: linear-gradient(180deg, var(--brand-light), var(--brand)); color: #fff; box-shadow: 0 3px 0 var(--brand-dim); }
+
+/* Sonuç kartları, rozetler */
+.qs-item, .pl-card { background: var(--surface-2); border: 1px solid var(--line); box-shadow: 0 4px 0 rgba(10, 6, 26, 0.3); }
+.qs-item:hover, .pl-card:hover { border-color: var(--brand-light); box-shadow: 0 4px 0 rgba(10, 6, 26, 0.3), 0 0 0 1px var(--brand-light); }
+.qs-scores { background: var(--bg-2); }
+.qs-count b { font-family: var(--f-display); }
+.pill.none { background: var(--surface-3); }
+.badge { background: var(--brand-soft); color: var(--brand-text); }
+.req-chip { background: var(--surface-3); }
+.req-chip.edu { background: var(--brand-soft); color: var(--brand-text); }
+.scenario, .stat, .nit-using, .guide { background: var(--surface-2); border-color: var(--line); }
+th { background: var(--surface-2); color: var(--muted); }
+tr.group-row td { background: var(--brand-soft); }
+.callout { background: var(--mark-soft); color: var(--ink); }
+.empty { background: var(--bg-2); border-color: var(--line-strong); }
+.empty.flat { background: transparent; }
+.empty-ico { background: var(--brand-soft); color: var(--mark); }
+.empty-title { font-family: var(--f-display); }
+input[type="range"] { accent-color: var(--mark); }
+details.tip > div { background: #F5F3FF; color: #150F28; font-weight: 600; }
+.drop { background: var(--bg-2); }
+
+/* Kelime Türet tanıtımı: kehribar çerçeve ve oyunun "Hızlı Başlangıç" düğmesi — sayfanın tek kehribar kartı */
+.promo { background: radial-gradient(120% 140% at 0% 0%, rgba(255, 200, 87, 0.16), transparent 55%), linear-gradient(180deg, var(--surface-3), var(--surface));
+  border: 2px solid var(--game-line); box-shadow: 0 6px 0 rgba(10, 6, 26, 0.4), 0 20px 40px rgba(10, 6, 26, 0.5); }
+.promo-eyebrow { color: var(--mark); }
+.promo h2 { color: var(--ink); }
+.promo p { color: var(--muted); }
+.promo p strong { color: var(--ink); }
+.tiles span { background: #F5F3FF; color: #2C2250; border-color: #D9D3FF; border-bottom-color: #B5ACFF; }
+.btn-game { background: linear-gradient(180deg, #FFDD8A, var(--mark)); color: var(--mark-ink); box-shadow: 0 5px 0 var(--mark-dim), 0 14px 26px rgba(255, 200, 87, 0.35); border-radius: 999px; }
+.btn-game:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--mark-dim); }
+footer { border-top-color: var(--line); }
+.brand em { font-style: normal; color: var(--mark); }
+.qs-scores { flex-wrap: wrap; }
+.qs-scores span { white-space: nowrap; }
