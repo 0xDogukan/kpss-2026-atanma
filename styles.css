@@ -513,3 +513,10 @@ a.chip { text-decoration: none; display: inline-block; }
 .seo-links .chips { margin-top: 8px; }
 tr[id]:target td { background: var(--mark-soft); }
 td a { color: var(--brand-text); }
+
+/* Puan hesaplama */
+.calc { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+.calc fieldset { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: flex; gap: 10px; margin: 0; background: var(--surface-2); }
+.calc legend { font-family: var(--f-display); font-weight: 700; padding: 0 6px; }
+.calc label { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 0.9rem; flex: 1; min-width: 0; }
+#calc-out { margin-top: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
