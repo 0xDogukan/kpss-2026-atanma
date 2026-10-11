@@ -543,3 +543,21 @@ td a { color: var(--brand-text); }
 .hist[open] summary::before { content: "−"; }
 .hist ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 2px; }
 .spark { display: block; }
+
+/* İl karo haritası */
+.qs-mapbox > summary { cursor: pointer; font-family: var(--f-display); font-weight: 700; color: var(--brand-text); list-style: none; display: inline-flex; gap: 8px; align-items: center; }
+.qs-mapbox > summary::-webkit-details-marker { display: none; }
+.qs-mapbox > summary::before { content: "+"; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--brand-soft); font-weight: 800; }
+.qs-mapbox[open] > summary::before { content: "−"; }
+.ilmap-scroll { overflow-x: auto; padding: 10px 2px 6px; }
+.ilmap { display: grid; grid-template-columns: repeat(19, minmax(30px, 1fr)); grid-template-rows: repeat(8, auto); gap: 4px; min-width: 640px; }
+.il { aspect-ratio: 1; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 8px; background: var(--surface-3); color: var(--faint); font: 800 0.66rem/1 var(--f-display); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; cursor: pointer; }
+.il small { font-size: 0.72rem; color: inherit; }
+.il:disabled { cursor: default; opacity: 0.55; }
+.il.l1 { background: color-mix(in srgb, var(--ok) 22%, var(--surface-3)); color: var(--ink); }
+.il.l2 { background: color-mix(in srgb, var(--ok) 42%, var(--surface-3)); color: var(--ink); }
+.il.l3 { background: color-mix(in srgb, var(--ok) 65%, var(--surface-3)); color: #0b2a24; }
+.il.l4 { background: var(--ok); color: #0b2a24; }
+.il:not(:disabled):hover { transform: translateY(-2px); }
+.il.on { background: linear-gradient(180deg, #FFDD8A, var(--mark)); color: var(--mark-ink); border-color: var(--mark-dim); }
+.qs-ilfilter { flex-basis: 100%; font-size: 0.92rem; }

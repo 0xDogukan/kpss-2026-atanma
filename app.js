@@ -1099,9 +1099,9 @@
     }
     return items;
   }
-  let qsLimit = 0, qsNear = false; // 0 = ilk sayfa; qsNear: sınırda kalanları da göster
+  let qsLimit = 0, qsNear = false, qsIl = '', mapOpen = false; // 0 = ilk sayfa; qsNear: sınırda kalanları da göster; qsIl: haritada seçilen il
   const qsFirst = () => (innerWidth < 640 ? 5 : 8);
-  const resetQuick = () => { qsLimit = 0; qsNear = false; };
+  const resetQuick = () => { qsLimit = 0; qsNear = false; qsIl = ''; };
   // Hızlı arama için eksik zorunlu bilgi: puan ya da bölüm/mezuniyet kodu.
   function quickNeed() {
     return user().score == null ? '#in-score' : null;
@@ -1159,7 +1159,9 @@
         ${!hasBolum ? '<p class="qs-note"><b>Bölüm yazmadığın için yalnız her bölümden mezunların başvurabildiği kadrolar (ör. memur) gösteriliyor.</b> <button type="button" class="btn-link" data-act="focus-bolum">Bölümünü yaz</button>, bölümüne özel kadrolar da eklensin.</p>' : ''}
         ${gaps.zero ? `<ul class="gap-list qs-note">${gaps.zero}</ul>` : ''}
       </div>`;
-    const list = qsNear ? ok.concat(near) : ok;
+    const all = qsNear ? ok.concat(near) : ok;
+    sum.insertAdjacentHTML('beforeend', ilMapHTML(all));
+    const list = qsIl ? all.filter((it) => DICT.il[it.r[COL.il]] === qsIl) : all;
     const lim = qsLimit || qsFirst();
     const mine = new Set(eduMatches(q, typed).keys());
     box.innerHTML = list.slice(0, lim).map((it) => qsCard(it, mine, q)).join('');
@@ -1258,6 +1260,21 @@
     return `<details class="hist"><summary>Bu kadronun geçmişi (${h.length} yerleştirme) ${svg}</summary><ul>`
       + h.slice().reverse().map((e) => `<li>${PFX}${esc(P[e.pi].id)} · ${(P[e.pi].levels[lvl] || {}).scoreYear || ''} puanı: taban <b class="tnum">${fSc(e.min, 2)}</b> · ${e.kont} kontenjan</li>`).join('')
       + '</ul><p class="small muted">Her yerleştirme kendi puan yılının puanlarıyla yapılır.</p></details>';
+  }
+  // İl karo haritası: her il yaklaşık coğrafi konumunda bir kare (19 × 8 ızgara; scripts/ dışında üretildi, il merkezlerinden)
+  const IL_GRID = Object.fromEntries('ADANA:9,6;ADIYAMAN:12,5;AFYONKARAHİSAR:4,4;AKSARAY:7,5;AMASYA:9,1;ANKARA:6,3;ANTALYA:4,6;ARDAHAN:16,1;ARTVİN:15,1;AYDIN:2,5;AĞRI:17,3;BALIKESİR:2,3;BARTIN:6,0;BATMAN:15,5;BAYBURT:14,2;BOLU:5,2;BURDUR:4,5;BURSA:3,2;BİLECİK:4,2;BİNGÖL:14,4;BİTLİS:16,4;DENİZLİ:3,5;DÜZCE:5,1;DİYARBAKIR:14,5;EDİRNE:0,0;ELAZIĞ:13,4;ERZURUM:15,3;ERZİNCAN:13,3;ESKİŞEHİR:5,3;GAZİANTEP:11,6;GÜMÜŞHANE:13,2;GİRESUN:12,1;HAKKARİ:17,6;HATAY:10,7;ISPARTA:5,5;IĞDIR:18,3;KAHRAMANMARAŞ:11,5;KARABÜK:6,1;KARAMAN:7,6;KARS:17,2;KASTAMONU:8,1;KAYSERİ:9,4;KIRIKKALE:7,3;KIRKLARELİ:1,0;KIRŞEHİR:8,4;KOCAELİ:3,3;KONYA:6,5;KÜTAHYA:4,3;KİLİS:11,7;MALATYA:12,4;MANİSA:1,4;MARDİN:14,6;MERSİN:8,7;MUĞLA:2,6;MUŞ:15,4;NEVŞEHİR:9,5;NİĞDE:8,5;ORDU:11,1;OSMANİYE:10,6;RİZE:14,1;SAKARYA:4,1;SAMSUN:10,1;SİNOP:9,0;SİVAS:11,3;SİİRT:16,5;TEKİRDAĞ:1,1;TOKAT:10,2;TRABZON:13,1;TUNCELİ:14,3;UŞAK:3,4;VAN:17,4;YALOVA:2,2;YOZGAT:9,3;ZONGULDAK:5,0;ÇANAKKALE:0,2;ÇANKIRI:7,2;ÇORUM:9,2;İSTANBUL:3,1;İZMİR:1,5;ŞANLIURFA:13,6;ŞIRNAK:16,6'.split(';').map((x) => { const [k, v] = x.split(':'); return [k, v.split(',').map(Number)]; }));
+  function ilMapHTML(list) {
+    const cnt = new Map();
+    let none = 0;
+    for (const it of list) { const il = DICT.il[it.r[COL.il]]; if (!il) { none++; continue; } cnt.set(il, (cnt.get(il) || 0) + 1); }
+    const band = (n) => (!n ? 0 : n < 2 ? 1 : n < 5 ? 2 : n < 15 ? 3 : 4);
+    const tiles = Object.entries(IL_GRID).map(([il, [c, r]]) => {
+      const n = cnt.get(il) || 0, name = trTitle(il);
+      return `<button type="button" class="il l${band(n)}${qsIl === il ? ' on' : ''}" style="grid-column:${c + 1};grid-row:${r + 1}" data-act="qs-il" data-il="${esc(il)}" title="${esc(name)}: ${n} kadro" aria-label="${esc(name)}: ${n} kadro"${n ? '' : ' disabled'}>${esc(name.slice(0, 3))}<small>${n || ''}</small></button>`;
+    }).join('');
+    return `<details class="qs-mapbox"${mapOpen || qsIl ? ' open' : ''}><summary>İllere göre haritada gör</summary><div class="ilmap-scroll"><div class="ilmap">${tiles}</div></div>
+      <p class="small muted">Bir ile dokun: yalnız o ildeki kadrolar listelenir. Renk koyulaştıkça kadro sayısı artar.${none ? ` İl bilgisi olmayan ${fInt(none)} kadro haritada yok.` : ''}</p></details>`
+      + (qsIl ? `<p class="qs-ilfilter">Yalnız <b>${esc(trTitle(qsIl))}</b> gösteriliyor (${fInt(cnt.get(qsIl) || 0)} kadro) · <button type="button" class="btn-link" data-act="qs-il" data-il="${esc(qsIl)}">Tüm iller</button></p>` : '');
   }
   function qsCard(it, mine, q) {
     const r = it.r, diff = it.thr - r[COL.min];
@@ -1682,6 +1699,7 @@
     'qs-all': () => { state.qyear = 'all'; resetQuick(); save(); renderQuick(); },
     'qs-near': () => { qsNear = !qsNear; qsLimit = 0; renderQuick(); },
     fav: (b) => toggleFav(b.dataset.pid, b.dataset.kod),
+    'qs-il': (b) => { qsIl = qsIl === b.dataset.il ? '' : b.dataset.il; qsLimit = 0; renderQuick(); },
     'tl-del': (b) => { tercih.splice(+b.dataset.i, 1); store.set(TL_KEY, tercih); renderTercih(); renderQuick(); if (state.tab === 'liste') renderList(); },
     'tl-up': (b) => { const i = +b.dataset.i; if (i > 0) { [tercih[i - 1], tercih[i]] = [tercih[i], tercih[i - 1]]; store.set(TL_KEY, tercih); renderTercih(); } },
     'tl-down': (b) => { const i = +b.dataset.i; if (i < tercih.length - 1) { [tercih[i + 1], tercih[i]] = [tercih[i], tercih[i + 1]]; store.set(TL_KEY, tercih); renderTercih(); } },
@@ -1771,6 +1789,7 @@
       goTo($('#quick'));
     });
     on('#prob-more', 'toggle', renderProbChart);
+    document.addEventListener('toggle', (e) => { if (e.target.classList && e.target.classList.contains('qs-mapbox')) mapOpen = e.target.open; }, true);
     document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (b && ACTIONS[b.dataset.act]) { e.preventDefault(); ACTIONS[b.dataset.act](b); }
