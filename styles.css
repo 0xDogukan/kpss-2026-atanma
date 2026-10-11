@@ -535,3 +535,11 @@ td a { color: var(--brand-text); }
 .tl-main { min-width: 0; flex: 1 1 16rem; }
 .tl-btns { display: flex; gap: 6px; }
 .tl-btns .btn { min-height: 36px; padding: 4px 12px; }
+
+/* Kadronun geçmişi */
+.hist summary { cursor: pointer; font-size: 0.82rem; font-weight: 700; color: var(--brand-text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; list-style: none; }
+.hist summary::-webkit-details-marker { display: none; }
+.hist summary::before { content: "+"; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: var(--brand-soft); font-weight: 800; }
+.hist[open] summary::before { content: "−"; }
+.hist ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 2px; }
+.spark { display: block; }

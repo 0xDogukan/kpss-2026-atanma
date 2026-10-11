@@ -1225,6 +1225,40 @@
     $('#tl-note').textContent = tercih.length >= TL_MAX ? `ÖSYM'de en fazla ${TL_MAX} tercih yapılır; liste doldu.`
       : 'Kodlar ÖSYM tercih ekranına bu sırayla girilir. Yeni yerleştirmenin (ör. KPSS-2026/2) kılavuzu çıkınca kadro kodları değişir; listeni yeni kodlarla kur.';
   }
+  // Aynı kadronun (düzey + kurum + unvan + il) önceki yerleştirmelerdeki tabanları
+  let histIdx = null;
+  const histKey = (x) => x[COL.level] + '|' + x[COL.kurum] + '|' + x[COL.unvan] + '|' + x[COL.il];
+  function kadroHistory(r) {
+    if (!histIdx) {
+      histIdx = new Map();
+      R.forEach((x, i) => { const k = histKey(x); if (!histIdx.has(k)) histIdx.set(k, []); histIdx.get(k).push(i); });
+    }
+    const byP = new Map(); // aynı yerleştirmede birden çok kod olabilir: kontenjanı topla, en düşük tabanı al
+    for (const i of histIdx.get(histKey(r)) || []) {
+      const x = R[i];
+      const e = byP.get(x[COL.p]) || { pi: x[COL.p], kont: 0, min: null };
+      e.kont += x[COL.kont];
+      if (x[COL.min] != null && (e.min == null || x[COL.min] < e.min)) e.min = x[COL.min];
+      byP.set(x[COL.p], e);
+    }
+    return [...byP.values()].sort((a, b) => (P[a.pi].date < P[b.pi].date ? -1 : 1));
+  }
+  function histHTML(r) {
+    const h = kadroHistory(r);
+    if (h.length < 2) return '';
+    const pts = h.filter((e) => e.min != null);
+    let svg = '';
+    if (pts.length >= 2) {
+      const lo = Math.min(...pts.map((e) => e.min)), hi = Math.max(...pts.map((e) => e.min)), w = 110, ht = 24;
+      const xy = pts.map((e, i) => [4 + i * (w - 8) / (pts.length - 1), ht - 4 - (hi > lo ? (e.min - lo) / (hi - lo) : 0.5) * (ht - 8)]);
+      svg = `<svg class="spark" viewBox="0 0 ${w} ${ht}" width="${w}" height="${ht}" aria-hidden="true"><polyline points="${xy.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" fill="none" stroke="var(--mark)" stroke-width="2"/>`
+        + xy.map((p) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.4" fill="var(--mark)"/>`).join('') + '</svg>';
+    }
+    const lvl = LEVELS[r[COL.level]];
+    return `<details class="hist"><summary>Bu kadronun geçmişi (${h.length} yerleştirme) ${svg}</summary><ul>`
+      + h.slice().reverse().map((e) => `<li>${PFX}${esc(P[e.pi].id)} · ${(P[e.pi].levels[lvl] || {}).scoreYear || ''} puanı: taban <b class="tnum">${fSc(e.min, 2)}</b> · ${e.kont} kontenjan</li>`).join('')
+      + '</ul><p class="small muted">Her yerleştirme kendi puan yılının puanlarıyla yapılır.</p></details>';
+  }
   function qsCard(it, mine, q) {
     const r = it.r, diff = it.thr - r[COL.min];
     const near = it.reach !== 'ok';
@@ -1234,7 +1268,7 @@
       <span class="kurum">${esc(DICT.kurum[r[COL.kurum]])}</span>
       <div class="qs-meta"><b>${esc(trTitle(DICT.il[r[COL.il]]))}</b><span>${r[COL.kont]} kontenjan</span><span>${PFX}${esc(it.pid)}</span>${contractOf(P.find((x) => x.id === it.pid && !x.user)) ? '<span class="tag">4/B sözleşmeli</span>' : ''}<span class="code">${esc(it.kod)}</span></div>
       <div class="qs-scores"><span>Taban <b class="tnum">${fSc(r[COL.min], 2)}</b></span><span>Senin karşılığın <b class="tnum hl">${fSc(it.thr, 2)}</b></span></div>
-      ${reqChips(it.pid, it.kod, mine, q)}</article>`;
+      ${reqChips(it.pid, it.kod, mine, q)}${histHTML(r)}</article>`;
   }
   function syncInputs() {
     for (const [sel, k] of [['#in-score', 'score'], ['#in-rank', 'rank'], ['#in-bolum', 'bolum'], ['#in-nkod', 'nkod']]) {
